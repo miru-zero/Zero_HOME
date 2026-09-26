@@ -1,0 +1,11 @@
+.zero/
+sandbox/
+**/node_modules/
+**/.env
+**/.env.*
+**/*.log
+**/*.tmp
+**/*.zip
+**/runtime/*.json
+.DS_Store
+Thumbs.db

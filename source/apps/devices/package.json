@@ -1,0 +1,12 @@
+{
+  "name": "@zero/devices",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test test/registry.test.js test/server.test.js"
+  },
+  "engines": { "node": ">=22" }
+}

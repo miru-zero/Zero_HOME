@@ -1,0 +1,80 @@
+[
+  {
+    "name": "list",
+    "description": "List paired Zero devices from the server device registry. Canonical: zero.devices.list",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "onlineOnly": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "status",
+    "description": "Get one paired Zero device by device_id or name. Canonical: zero.devices.status",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "device_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "heartbeat",
+    "description": "Summarize the latest heartbeat state for one Zero device. Canonical: zero.devices.heartbeat",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "device_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "exec",
+    "description": "Queue a safe command tool on a paired Zero agent device and wait for the result. Canonical: zero.devices.exec",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "device_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tool": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "waitMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 15000
+        }
+      },
+      "required": [
+        "tool"
+      ],
+      "additionalProperties": false
+    }
+  }
+]
