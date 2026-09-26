@@ -281,7 +281,7 @@ const handlers = {
   exists,
   hashFile
 };
-const agentToolNames = new Set(['readFile', 'readFiles', 'listDirectory']);
+const agentToolNames = new Set(['readFile', 'readFiles', 'listDirectory', 'getFileInfo', 'globFiles', 'grepFiles']);
 const agentCanonical = (name) => `zero.command.filesystem.${name}`;
 const agentNames = (name) => [name, `command.${name}`, `zero.command.${name}`, agentCanonical(name)];
 const describeAgentTool = (name) => {
