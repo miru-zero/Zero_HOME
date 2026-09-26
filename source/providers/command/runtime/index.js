@@ -268,12 +268,10 @@ const exists = (args, context) => { const pathValue = resolveAllowed(args.path, 
 const hashFile = (args, context) => { const file=resolveAllowed(args.path, context); return {ok:true,path:file,algorithm:'sha256',hash:crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')}; };
 
 const handlers = {
-  readFiles,
   writeFile,
   replaceFile,
   createDirectory,
   deleteFile,
-  listDirectory,
   getFileInfo,
   globFiles,
   grepFiles,
@@ -283,19 +281,25 @@ const handlers = {
   exists,
   hashFile
 };
-exports.listTools = () => TOOLS.map(([name, description]) => {
-  if (name === 'readFile') {
-    const item = zeroAgent.command.resolveTool('zero.command.filesystem.readFile');
-    return { name, canonicalName: item.name, category: item.category, function: item.function, aliases: item.aliases, description: item.description, inputSchema: item.inputSchema };
-  }
+const agentToolNames = new Set(['readFile', 'readFiles', 'listDirectory']);
+const agentCanonical = (name) => `zero.command.filesystem.${name}`;
+const agentNames = (name) => [name, `command.${name}`, `zero.command.${name}`, agentCanonical(name)];
+const describeAgentTool = (name) => {
+  const item = zeroAgent.command.resolveTool(agentCanonical(name));
+  return { name, canonicalName: item.name, category: item.category, function: item.function, aliases: item.aliases, description: item.description, inputSchema: item.inputSchema };
+};
+const listTools = () => TOOLS.map(([name, description]) => {
+  if (agentToolNames.has(name)) return describeAgentTool(name);
   return { name, description: `${description} Canonical: zero.command.${name}`, inputSchema: toolSchemas[name] };
 });
-
-exports.callTool = async (name, args = {}, context = {}) => {
-  if (['readFile', 'command.readFile', 'zero.command.readFile', 'zero.command.filesystem.readFile'].includes(name)) return zeroAgent.command.callTool(name, args, context);
+const callTool = async (name, args = {}, context = {}) => {
+  for (const toolName of agentToolNames) {
+    if (agentNames(toolName).includes(name)) return zeroAgent.command.callTool(name, args, context);
+  }
   const handler = handlers[name];
   if (!handler) throw err('UNKNOWN_TOOL', 'unknown command tool: ' + name);
   return handler(args, context);
 };
 
-exports._private = { resolveAllowed, rootsFor, wildcard };
+const commandProvider = { listTools, callTool, _private: { resolveAllowed, rootsFor, wildcard } };
+Object.assign(exports, commandProvider);
