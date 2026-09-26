@@ -3,13 +3,13 @@
 const path = require('node:path');
 const zero = require('../../zero-runtime');
 const pathPolicy = require('./path-policy');
-const text = require('./text');
+const textModule = require('./text');
 const walk = require('./walk');
 
 const descriptor = zero.descriptor.validate({
   name: 'zero.command.filesystem.grepFiles',
   aliases: ['zero.command.grepFiles'],
-  description: 'Search text files inside allowed roots.',
+  description: 'Search text content in files inside allowed roots.',
   capability: 'filesystem.read',
   risk: 'read',
   execution: 'target',
@@ -36,9 +36,9 @@ const grepFiles = (args = {}, context = {}) => {
   const matches = [];
   for (const file of walk.walk(root, { filesOnly: true })) {
     if (fileRx && !fileRx.test(path.basename(file.path)) && !fileRx.test(file.relativePath)) continue;
-    let value;
-    try { value = text.readUtf8(file.path); } catch { continue; }
-    const lines = value.split(/\r?\n/);
+    let text;
+    try { text = textModule.readUtf8(file.path); } catch { continue; }
+    const lines = text.split(/\r?\n/);
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index];
       const hit = args.literal ? line.includes(String(args.pattern)) : rx.test(line);

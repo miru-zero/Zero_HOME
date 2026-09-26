@@ -49,13 +49,7 @@ const readFiles = (args = {}, context = {}) => {
     }
   });
   const succeeded = files.filter((item) => item.ok).length;
-  return {
-    ok: succeeded === files.length,
-    count: files.length,
-    succeeded,
-    failed: files.length - succeeded,
-    files
-  };
+  return { ok: succeeded === files.length, count: files.length, succeeded, failed: files.length - succeeded, files };
 };
 
 const readFilesModule = { descriptor, readFiles };

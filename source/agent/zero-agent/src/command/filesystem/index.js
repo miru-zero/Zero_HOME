@@ -1,25 +1,34 @@
 'use strict';
 
-const readFileModule = require('./read-file');
-const readFilesModule = require('./read-files');
-const listDirectoryModule = require('./list-directory');
-const getFileInfoModule = require('./get-file-info');
-const globFilesModule = require('./glob-files');
-const grepFilesModule = require('./grep-files');
-
-const filesystem = {
-  readFile: readFileModule.readFile,
-  readFileDescriptor: readFileModule.descriptor,
-  readFiles: readFilesModule.readFiles,
-  readFilesDescriptor: readFilesModule.descriptor,
-  listDirectory: listDirectoryModule.listDirectory,
-  listDirectoryDescriptor: listDirectoryModule.descriptor,
-  getFileInfo: getFileInfoModule.getFileInfo,
-  getFileInfoDescriptor: getFileInfoModule.descriptor,
-  globFiles: globFilesModule.globFiles,
-  globFilesDescriptor: globFilesModule.descriptor,
-  grepFiles: grepFilesModule.grepFiles,
-  grepFilesDescriptor: grepFilesModule.descriptor
+const modules = {
+  readFile: require('./read-file'),
+  readFiles: require('./read-files'),
+  listDirectory: require('./list-directory'),
+  getFileInfo: require('./get-file-info'),
+  globFiles: require('./glob-files'),
+  grepFiles: require('./grep-files'),
+  writeFile: require('./write-file'),
+  appendFile: require('./append-file'),
+  createFile: require('./create-file'),
+  touchFile: require('./touch-file'),
+  replaceFile: require('./replace-file'),
+  createDirectory: require('./create-directory'),
+  deleteFile: require('./delete-file'),
+  copyDirectory: require('./copy-directory'),
+  moveDirectory: require('./move-directory'),
+  deleteDirectory: require('./delete-directory'),
+  truncateFile: require('./truncate-file'),
+  copyFile: require('./copy-file'),
+  moveFile: require('./move-file'),
+  renameFile: require('./rename-file'),
+  exists: require('./exists'),
+  hashFile: require('./hash-file')
 };
+
+const filesystem = {};
+for (const [name, item] of Object.entries(modules)) {
+  filesystem[name] = item[name];
+  filesystem[`${name}Descriptor`] = item.descriptor;
+}
 
 Object.assign(exports, filesystem);

@@ -20,6 +20,7 @@ const descriptor = zero.descriptor.validate({
     additionalProperties: false
   }
 });
+
 const getFileInfo = (args = {}, context = {}) => {
   const target = pathPolicy.resolveAllowed(args.path, context);
   const stat = fs.statSync(target);

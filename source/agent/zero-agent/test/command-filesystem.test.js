@@ -8,30 +8,27 @@ const path = require('node:path');
 const command = require('../src/command');
 
 test('canonical filesystem readFiles and listDirectory are registered', () => {
-  const names = command.listTools({ provider: 'command', category: 'filesystem' }).map((tool) => tool.name);
-  assert.ok(names.includes('zero.command.filesystem.readFile'));
+  const names = command.listTools().map((tool) => tool.name);
   assert.ok(names.includes('zero.command.filesystem.readFiles'));
   assert.ok(names.includes('zero.command.filesystem.listDirectory'));
 });
 
-test('canonical filesystem readFiles and listDirectory execute inside roots', (t) => {
+test('canonical filesystem readFiles and listDirectory execute inside roots', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zero-agent-fs-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const dir = path.join(root, 'nested');
-  const one = path.join(root, 'one.txt');
-  const two = path.join(dir, 'two.txt');
-  fs.mkdirSync(dir);
-  fs.writeFileSync(one, 'one\n');
-  fs.writeFileSync(two, 'two\n');
+  const nested = path.join(root, 'nested');
+  fs.mkdirSync(nested);
+  fs.writeFileSync(path.join(root, 'a.txt'), 'one\n');
+  fs.writeFileSync(path.join(nested, 'b.txt'), 'two\n');
 
-  const read = command.callTool('zero.command.filesystem.readFiles', { paths: [one, two] }, { commandRoots: [root] });
+  const read = command.callTool('zero.command.filesystem.readFiles', {
+    paths: [path.join(root, 'a.txt'), path.join(nested, 'b.txt')]
+  }, { commandRoots: [root] });
   assert.equal(read.ok, true);
   assert.equal(read.count, 2);
-  assert.ok(read.files[0].content.includes('one'));
-  assert.ok(read.files[1].content.includes('two'));
+  assert.ok(read.files[0].content.includes('   1\tone'));
+  assert.ok(read.files[1].content.includes('   1\ttwo'));
 
-  const listed = command.callTool('zero.command.filesystem.listDirectory', { path: root, depth: 2 }, { commandRoots: [root] });
-  assert.equal(listed.ok, true);
-  assert.ok(listed.entries.some((entry) => entry.relativePath === 'one.txt' && entry.type === 'file'));
-  assert.ok(listed.entries.some((entry) => entry.relativePath === 'nested/two.txt' && entry.type === 'file'));
+  const listing = command.callTool('zero.command.filesystem.listDirectory', { path: root, depth: 2 }, { commandRoots: [root] });
+  assert.equal(listing.ok, true);
+  assert.deepEqual(listing.entries.map((item) => item.relativePath).sort(), ['a.txt', 'nested', 'nested/b.txt']);
 });

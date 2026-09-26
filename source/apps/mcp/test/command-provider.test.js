@@ -14,9 +14,16 @@ test('command provider exposes basic filesystem tools', () => {
     'readFile',
     'readFiles',
     'writeFile',
+    'appendFile',
+    'createFile',
+    'touchFile',
     'replaceFile',
     'createDirectory',
     'deleteFile',
+    'copyDirectory',
+    'moveDirectory',
+    'deleteDirectory',
+    'truncateFile',
     'listDirectory',
     'getFileInfo',
     'globFiles',
@@ -25,7 +32,14 @@ test('command provider exposes basic filesystem tools', () => {
     'moveFile',
     'renameFile',
     'exists',
-    'hashFile'
+    'hashFile',
+    'resolvePath',
+    'normalizePath',
+    'joinPath',
+    'relativePath',
+    'getParentDirectory',
+    'getFilename',
+    'getExtension'
   ]);
 });
 

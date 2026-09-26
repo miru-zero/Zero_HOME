@@ -2,50 +2,41 @@
 
 const zero = require('../zero-runtime');
 const filesystem = require('./filesystem');
+const pathTools = require('./path');
+
+const fsToolNames = [
+  'readFile', 'readFiles', 'writeFile', 'appendFile', 'createFile', 'touchFile', 'replaceFile',
+  'createDirectory', 'deleteFile', 'copyDirectory', 'moveDirectory', 'deleteDirectory', 'truncateFile',
+  'listDirectory', 'getFileInfo', 'globFiles', 'grepFiles', 'copyFile', 'moveFile', 'renameFile', 'exists', 'hashFile'
+];
+const pathToolNames = [
+  'resolvePath', 'normalizePath', 'joinPath', 'relativePath', 'getParentDirectory', 'getFilename', 'getExtension'
+];
 
 const descriptors = [
-  filesystem.readFileDescriptor,
-  filesystem.readFilesDescriptor,
-  filesystem.listDirectoryDescriptor,
-  filesystem.getFileInfoDescriptor,
-  filesystem.globFilesDescriptor,
-  filesystem.grepFilesDescriptor
+  ...fsToolNames.map((name) => filesystem[`${name}Descriptor`]),
+  ...pathToolNames.map((name) => pathTools[`${name}Descriptor`])
 ];
 const catalog = zero.catalog.create(descriptors);
 const handlers = new Map([
-  [filesystem.readFileDescriptor.name, filesystem.readFile],
-  [filesystem.readFilesDescriptor.name, filesystem.readFiles],
-  [filesystem.listDirectoryDescriptor.name, filesystem.listDirectory],
-  [filesystem.getFileInfoDescriptor.name, filesystem.getFileInfo],
-  [filesystem.globFilesDescriptor.name, filesystem.globFiles],
-  [filesystem.grepFilesDescriptor.name, filesystem.grepFiles]
+  ...fsToolNames.map((name) => [filesystem[`${name}Descriptor`].name, filesystem[name]]),
+  ...pathToolNames.map((name) => [pathTools[`${name}Descriptor`].name, pathTools[name]])
 ]);
-const localAlias = (name) => {
-  const aliases = {
-    readFile: 'zero.command.readFile',
-    'command.readFile': 'zero.command.readFile',
-    readFiles: 'zero.command.readFiles',
-    'command.readFiles': 'zero.command.readFiles',
-    listDirectory: 'zero.command.listDirectory',
-    'command.listDirectory': 'zero.command.listDirectory',
-    getFileInfo: 'zero.command.getFileInfo',
-    'command.getFileInfo': 'zero.command.getFileInfo',
-    globFiles: 'zero.command.globFiles',
-    'command.globFiles': 'zero.command.globFiles',
-    grepFiles: 'zero.command.grepFiles',
-    'command.grepFiles': 'zero.command.grepFiles'
-  };
-  return aliases[name] || name;
-};
+
+const localAliasMap = {};
+for (const name of fsToolNames) {
+  localAliasMap[name] = `zero.command.${name}`;
+  localAliasMap[`command.${name}`] = `zero.command.${name}`;
+}
+for (const name of pathToolNames) {
+  localAliasMap[name] = `zero.command.${name}`;
+  localAliasMap[`command.${name}`] = `zero.command.${name}`;
+}
+const localAlias = (name) => localAliasMap[name] || name;
+
 const command = {
-  filesystem: {
-    readFile: filesystem.readFile,
-    readFiles: filesystem.readFiles,
-    listDirectory: filesystem.listDirectory,
-    getFileInfo: filesystem.getFileInfo,
-    globFiles: filesystem.globFiles,
-    grepFiles: filesystem.grepFiles
-  },
+  filesystem: Object.fromEntries(fsToolNames.map((name) => [name, filesystem[name]])),
+  path: Object.fromEntries(pathToolNames.map((name) => [name, pathTools[name]])),
   listTools: (filter = {}) => catalog.list(filter),
   resolveTool: (name) => catalog.resolve(localAlias(name)),
   callTool: (name, args = {}, context = {}) => {
