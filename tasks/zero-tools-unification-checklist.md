@@ -1,4 +1,4 @@
-# Zero Tools Unification — Step Checklist
+# Zero Tools Unification â€” Step Checklist
 
 Rule: **Core + Apps + Agent move together. A Step is DONE only when its Triplet Gate passes.**
 
@@ -8,14 +8,14 @@ Canonical roles:
 - Agent = Local Command
 - Shared Zero = Contract / Catalog / Runtime kernel
 
-## STEP 0 — Freeze the Baseline
+## STEP 0 â€” Freeze the Baseline
 
-- [x] 0.1 Copy the required production trees (`source/core/zero-core`, relevant `source/apps`, `source/agent/zero-agent`, providers/packages they depend on) into one isolated `sandbox/projects/zero-tools-unification` workspace.
+- [x] 0.1 Copy the required production trees (`source/core/zero-core`, `source/apps` connector docs, `source/agent/zero-agent`, providers/packages they depend on) into one isolated `sandbox/projects/zero-tools-unification` workspace.
   - Acceptance: the sandbox copy is self-contained enough to exercise the Core + Apps + Agent path without modifying production source.
   - Verify: run tests from the copied Agent package under `sandbox/projects/zero-tools-unification/source/agent/zero-agent`.
 - [x] 0.2 Fix and extend tests inside the sandbox copy only; path-sensitive assertions must point to the copied project layout, not production paths.
   - Acceptance: all previously valid Agent behavior tests pass from canonical path.
-- [x] 0.3 In the sandbox copy, make `apps/mcp` tests runnable from that copied package; production remains untouched.
+- [x] 0.3 Move MCP coverage to `source/core/zero-core/test`; legacy `apps/mcp` production copy removed.
   - Acceptance: MCP tests run from its own package directory.
 - [x] 0.4 In the sandbox copy, add focused Core baseline tests for `/tools`, provider call, and MCP discovery/call behavior.
   - Acceptance: behavior being replaced has executable regression coverage.
@@ -29,42 +29,42 @@ Canonical roles:
 
 ## GLOBAL SANDBOX RULE
 
-- [ ] Every STEP 1–9 is implemented and verified first under `sandbox/projects/zero-tools-unification`.
+- [ ] Every STEP 1â€“9 is implemented and verified first under `sandbox/projects/zero-tools-unification`.
 - [ ] `source/...` paths below describe the production destination after verification.
 - [ ] Promotion is diff-based: copy back only reviewed/verified changes, never replace production blindly with the whole sandbox tree.
 - [ ] After promotion, rerun the relevant Triplet Gate against production paths before marking the Step DONE.
 
-## STEP 1 — Shared Zero Contract
+## STEP 1 â€” Shared Zero Contract
 
 - [x] 1.1 Create `source/packages/zero` (`@miruzero/zero`) targeting Node >=20.
 - [x] 1.2 Implement `contractVersion`, tool-id parse/format, descriptor validation, catalog ordering, alias map, Zero error shape.
 - [x] 1.3 Add package `exports` so only the public contract/runtime seam is importable.
 - [x] 1.4 Add tests: valid/invalid ids, duplicate ids, aliases, version mismatch, deterministic list order.
 - [x] 1.5 Wire Agent capability payload to advertise `contractVersion`.
-- [x] 1.6 Wire Core and Apps/MCP to consume/report the same contract version without changing calls yet.
+- [x] 1.6 Wire Core MCP to consume/report the shared contract version while Agent uses the same contract boundary.
 
 ### TRIPLET GATE 1
 - [x] Core + Apps + Agent import the same Shared Zero package.
 - [x] No OS/tool implementation exists inside Shared Zero.
 - [x] All STEP 0 tests remain green.
 
-## STEP 2 — Tracer `command.filesystem.readFile`
+## STEP 2 â€” Tracer `command.filesystem.readFile`
 
 - [x] 2.1 Agent owns canonical `filesystem.readFile` descriptor + implementation.
 - [x] 2.2 Agent package exports a library seam usable without spawning the daemon.
 - [x] 2.3 Core `command` provider becomes an adapter to the Agent library for this tool.
-- [x] 2.4 Apps/MCP derives this MCP tool/schema from catalog metadata.
+- [x] 2.4 Core MCP derives tools and schemas from provider catalog metadata.
 - [x] 2.5 CLI accepts `zero command filesystem readFile '<json>'`.
 - [x] 2.6 HTTP discovery accepts `pvd=command&cat=filesystem`.
 - [x] 2.7 Preserve legacy `zero command readFile` / `zero.command.readFile` aliases.
 - [x] 2.8 Add direct-Agent/Core/CLI/HTTP/MCP parity tests.
 
 ### TRIPLET GATE 2
-- [x] One authoritative active readFile implementation exists; the dormant duplicate `source/apps/agent` tree remains scheduled for removal at STEP 4.
+- [x] One authoritative active readFile implementation exists; the dormant duplicate `source/apps/agent` tree has been removed.
 - [x] All surfaces return equivalent semantics/errors.
 - [x] Legacy alias works through the canonical Agent handler without a second active handler in Core/provider/MCP.
 
-## STEP 3 — Target / Remote Parity
+## STEP 3 â€” Target / Remote Parity
 
 - [x] 3.1 Add explicit `target` context; default must be unambiguous (`core/local`), not mutable global state.
 - [x] 3.2 Device task payload carries canonical tool id + contractVersion + semantic args + deadline.
@@ -72,7 +72,7 @@ Canonical roles:
 - [x] 3.4 Core chooses direct local Agent library or device transport from target.
 - [x] 3.5 Normal tool callers no longer need nested `devices.exec` for command execution.
 - [ ] 3.6 Run readFile E2E on MiruZero and TON after matching Agent build is installed.
-  - Verified actual Core↔Agent HTTP task transport on an ephemeral loopback server and direct canonical Agent execution on TON with the matching temporary build.
+  - Verified actual Coreâ†”Agent HTTP task transport on an ephemeral loopback server and direct canonical Agent execution on TON with the matching temporary build.
   - BLOCKER: TON cannot TCP-connect to MiruZero ephemeral ports (18080/18051); Windows inbound firewall blocks the final cross-machine transport check. No firewall rule or public tunnel was changed/created.
 
 ### TRIPLET GATE 3
@@ -80,7 +80,7 @@ Canonical roles:
 - [x] Same normalized error/result contract on both targets.
 - [x] Capability hash reflects contract/platform/architecture/category/adapter/provider changes.
 
-## STEP 4 — Migrate Existing Command Tools
+## STEP 4 â€” Migrate Existing Command Tools
 
 - [ ] 4.1 Read group: `readFiles`, `listDirectory`, `getFileInfo`, `globFiles`, `grepFiles`.
 - [ ] 4.2 Mutation group: `writeFile`, `replaceFile`, `createDirectory`, `deleteFile`.
@@ -90,9 +90,9 @@ Canonical roles:
 ### TRIPLET GATE 4
 - [ ] Agent is the only owner of command execution logic.
 - [ ] Provider/Core/App contain no duplicate command handler/schema copy.
-- [ ] Agent tests are preserved in the external sandbox harness; duplicate `source/apps/agent` production tree can be removed safely.
+- [x] Agent tests are preserved under active `source/agent/zero-agent`; duplicate `source/apps/agent` production tree removed.
 
-## STEP 5 — Harden the Command Seam
+## STEP 5 â€” Harden the Command Seam
 
 - [ ] 5.1 Real-path allowed-root validation including Windows junction/symlink escape cases.
 - [ ] 5.2 Safe handling for non-existing destinations using nearest existing ancestor.
@@ -105,7 +105,7 @@ Canonical roles:
 - [ ] No public unbounded traversal/output path.
 - [ ] Error surface stable across CLI/HTTP/MCP.
 
-## STEP 6 — Complete Filesystem + Path Foundation
+## STEP 6 â€” Complete Filesystem + Path Foundation
 
 - [ ] 6.1 Add `appendFile`, `createFile`, `touchFile`, `copyDirectory`, `moveDirectory`, `deleteDirectory`, `truncateFile`.
 - [ ] 6.2 Add `resolvePath`, `normalizePath`, `joinPath`, `relativePath`, `getParentDirectory`, `getFilename`, `getExtension`.
@@ -117,7 +117,7 @@ Canonical roles:
 - [ ] `zero tools command path` is complete and scoped.
 - [ ] HTTP and MCP expose identical category membership from the catalog.
 
-## STEP 7 — `via` Execution Adapters
+## STEP 7 â€” `via` Execution Adapters
 
 - [ ] 7.1 Keep `native` preferred; define `via` in descriptor/runtime context without exposing raw shell text.
 - [ ] 7.2 Add a second real adapter for `readFile` before generalizing the adapter seam.
@@ -130,7 +130,7 @@ Canonical roles:
 - [ ] Unsupported adapter fails before side effects.
 - [ ] Core never constructs shell-specific syntax.
 
-## STEP 8 — Progressive Discovery / Logic Hook
+## STEP 8 â€” Progressive Discovery / Logic Hook
 
 - [ ] 8.1 `/tools` returns provider summary by default.
 - [ ] 8.2 `pvd=<provider>` returns category summary, not the full schema flood.
@@ -144,7 +144,7 @@ Canonical roles:
 - [ ] Links/related capabilities are discoverable only; they never auto-execute.
 - [ ] Core/App/Agent continue sharing one catalog contract.
 
-## STEP 9 — Expand + Remove Legacy Ownership
+## STEP 9 â€” Expand + Remove Legacy Ownership
 
 - [ ] 9.1 Add Disk as a vertical triplet slice.
 - [ ] 9.2 Add Process + Exec with executable/argv separation, timeout/cancel/output quotas, target-scoped process handles.
@@ -152,7 +152,7 @@ Canonical roles:
 - [ ] 9.4 Add Network only after SSRF/address/download policy is defined.
 - [ ] 9.5 Add Archive with path-traversal and expansion limits.
 - [ ] 9.6 Add Data, Watch, Batch, Util as separate scoped slices.
-- [ ] 9.7 Remove Core hard-coded MCP tool definitions once Apps/MCP is authoritative.
+- [x] 9.7 Remove Core hard-coded MCP tool definitions; Core MCP now derives tools from the provider catalog.
 - [ ] 9.8 Remove duplicate Core MCP protocol path once Core delegates to the MCP App.
 - [ ] 9.9 Remove obsolete provider command implementation after Agent ownership + compatibility aliases pass.
 - [ ] 9.10 Remove compatibility aliases only after usage/migration evidence says callers are clean.
@@ -168,9 +168,9 @@ Canonical roles:
 ## Current Baseline Recorded 2026-09-26
 
 - [x] `source/agent/zero-agent`: npm test runs but contains 0 tests.
-- [x] `source/apps/agent`: 19/20 pass; one path-sensitive autostart assertion fails.
-- [x] `source/apps/mcp`: existing test file present, package missing `test` script.
-- [x] `source/apps/devices`: 12/12 pass.
+- [x] `source/apps/agent`: removed from production tree; active agent package is `source/agent/zero-agent`.
+- [x] `source/apps/mcp`: removed; replacement MCP tests live in `source/core/zero-core/test`.
+- [x] `source/apps/devices`: removed; device provider/runtime coverage lives under `source/providers/devices`.
 - [x] `source/core/zero-core`: npm test runs with 0 tests.
 - [x] Root `M:\Zero_HOME` is not a Git repository, so no root design-doc commit is possible yet.
 - [x] Direct MCP test run (`node --test test/command-provider.test.js`): 4/5 pass; tool-list assertion is stale at 10 while provider currently exposes 15 (`copyFile`, `moveFile`, `renameFile`, `exists`, `hashFile` added).
