@@ -58,14 +58,27 @@ const safeInternalTools = (provider) => {
     return [{ name: '__scan_error__', description: error.message, inputSchema: null }];
   }
 };
-const builtInLocalProvider = () => ({
-  name: 'zero-agent-local',
-  type: 'internal',
-  description: 'Built-in safe local filesystem tools exposed by zero-agent.',
-  status: 'present',
-  tools: localTools.listTools(),
-  tool_count: localTools.listTools().length
+const publicCommandTool = (tool) => ({
+  name: tool.name,
+  description: tool.description || '',
+  canonicalName: tool.name,
+  category: tool.category,
+  function: tool.function,
+  aliases: tool.aliases || [],
+  inputSchema: tool.inputSchema || null
 });
+
+const builtInLocalProvider = () => {
+  const tools = command.listTools().map(publicCommandTool);
+  return {
+    name: 'zero-agent-command',
+    type: 'internal',
+    description: 'Built-in safe command tools exposed by zero-agent.',
+    status: 'present',
+    tools,
+    tool_count: tools.length
+  };
+};
 
 const buildCapabilities = (env = process.env) => {
   const providers = [builtInLocalProvider(), ...manifestProviders(env).map((provider) => {
