@@ -81,3 +81,21 @@ Bad result:
 ## Current limitation
 
 OAuth and machine auth-key management are design targets. Current private testing still uses `Authentication=None` at the ChatGPT connector and device tokens in Core/Agent runtime.
+
+## Live auth gate QA tool
+
+Core exposes a runtime QA tool:
+
+```text
+zero.qa.auth.requireMachineAuth
+```
+
+Expected behavior:
+
+| Call state | Expected result |
+| --- | --- |
+| No auth context | MCP error with `AUTH_REQUIRED` and a `wwwAuthenticate` hint. |
+| Valid machine auth context | Success with redacted auth status only. |
+| Raw secret in chat | Invalid test pattern; raw machine keys must not be pasted into chat. |
+
+This proves the QA flow is active at runtime. It does not prove OAuth is complete yet; it proves protected flows can fail closed instead of silently running as no-auth.

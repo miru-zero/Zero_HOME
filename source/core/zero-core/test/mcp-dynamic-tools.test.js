@@ -52,6 +52,7 @@ test('MCP tools/list is generated from Core hub providers', async () => {
   });
 
   assert.equal(reply.result.tools.some((tool) => tool.name === 'listZeroTools'), true);
+  assert.equal(reply.result.tools.some((tool) => tool.name === 'zero.qa.auth.requireMachineAuth'), true);
   assert.equal(reply.result.tools.some((tool) => tool.name === 'zero.command.filesystem.readFile'), true);
   assert.equal(reply.result.tools.some((tool) => tool.name === 'zero.command.path.getFilename'), true);
   assert.equal(reply.result.tools.some((tool) => tool.name === 'zero.devices.list'), true);
@@ -80,3 +81,41 @@ test('MCP canonical command and device calls route through Core hub', async () =
   ]);
   assert.equal(calls.every((item) => item.hasEnv), true);
 });
+
+test('MCP machine auth QA tool requests auth when no auth context exists', async () => {
+  const reply = await mcp.handle({
+    jsonrpc: '2.0',
+    id: 4,
+    method: 'tools/call',
+    params: {
+      name: 'zero.qa.auth.requireMachineAuth',
+      arguments: { device: 'MiruZero', reason: 'qa' }
+    }
+  }, { env: {}, createHub: () => makeHub() });
+
+  assert.equal(reply.error.data.code, 'AUTH_REQUIRED');
+  assert.equal(reply.error.data.data.auth.present, false);
+  assert.equal(reply.error.data.data.required.raw_secret_allowed_in_chat, false);
+  assert.match(reply.error.data.wwwAuthenticate, /AUTH_REQUIRED/);
+});
+
+test('MCP machine auth QA tool returns only redacted status when auth is valid', async () => {
+  const reply = await mcp.handle({
+    jsonrpc: '2.0',
+    id: 5,
+    method: 'tools/call',
+    params: {
+      name: 'zero.qa.auth.requireMachineAuth',
+      arguments: { device: 'MiruZero', reason: 'qa' }
+    }
+  }, {
+    env: {},
+    createHub: () => makeHub(),
+    auth: { type: 'machine', status: 'valid', device: 'MiruZero', secret: 'SHOULD_NOT_LEAK' }
+  });
+
+  assert.equal(reply.result.structuredContent.ok, true);
+  assert.equal(reply.result.structuredContent.auth.redacted, true);
+  assert.equal(JSON.stringify(reply), JSON.stringify(reply).includes('SHOULD_NOT_LEAK') ? 'must-not-match' : JSON.stringify(reply));
+});
+

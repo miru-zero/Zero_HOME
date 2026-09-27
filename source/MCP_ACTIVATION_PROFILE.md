@@ -56,3 +56,13 @@ Save raw keys in Markdown.
 Print raw keys in logs.
 Return raw keys through MCP tool output.
 ```
+
+## Runtime QA auth gate
+
+Use this MCP tool to confirm the connector is hitting a protected auth boundary:
+
+```text
+zero.qa.auth.requireMachineAuth
+```
+
+Without auth, the correct response is `AUTH_REQUIRED`. A successful no-auth response is a failure.

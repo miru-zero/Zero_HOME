@@ -10,6 +10,32 @@ const inputSchema = (properties, required = []) => ({
   additionalProperties: false
 });
 
+const AUTH_QA_TOOL_NAME = 'zero.qa.auth.requireMachineAuth';
+
+const authRequired = (message = 'Machine auth is required for this QA flow.') => {
+  const error = new Error(message);
+  error.code = 'AUTH_REQUIRED';
+  error.wwwAuthenticate = 'Bearer realm="zero-machine", error="AUTH_REQUIRED"';
+  return error;
+};
+
+const authContext = (options = {}) => options.auth || options.context?.auth || null;
+const hasMachineAuth = (options = {}) => {
+  const auth = authContext(options);
+  return Boolean(auth && auth.type === 'machine' && auth.status === 'valid');
+};
+
+const redactedAuthStatus = (options = {}) => {
+  const auth = authContext(options);
+  if (!auth) return { present: false, status: 'missing', redacted: true };
+  return {
+    present: true,
+    type: auth.type || 'unknown',
+    status: auth.status || 'unknown',
+    device: auth.device || null,
+    redacted: true
+  };
+};
 const discoveryTools = [
   {
     name: 'listZeroTools',
@@ -24,6 +50,14 @@ const discoveryTools = [
       tool: { type: 'string' },
       arguments: { type: 'object', additionalProperties: true }
     }, ['provider', 'tool'])
+  },
+  {
+    name: AUTH_QA_TOOL_NAME,
+    description: 'QA gate for machine auth. It must return AUTH_REQUIRED unless Core received a valid machine auth context. Never returns raw secrets.',
+    inputSchema: inputSchema({
+      device: { type: 'string' },
+      reason: { type: 'string' }
+    })
   }
 ];
 
@@ -153,8 +187,33 @@ const callHubTool = async ({ options = {}, provider, tool, args = {} }) => {
   }
 };
 
+const requireMachineAuthQa = (args = {}, options = {}) => {
+  if (!hasMachineAuth(options)) {
+    const error = authRequired('Machine auth is required before protected Zero machine actions can run.');
+    error.data = {
+      code: 'AUTH_REQUIRED',
+      auth: redactedAuthStatus(options),
+      required: {
+        type: 'machine',
+        source: 'ChatGPT MCP connector or future OAuth/secret boundary',
+        raw_secret_allowed_in_chat: false
+      },
+      requested: {
+        device: args.device || null,
+        reason: args.reason || 'qa'
+      }
+    };
+    throw error;
+  }
+  return {
+    ok: true,
+    auth: redactedAuthStatus(options),
+    message: 'Machine auth context is valid. Raw secret was not exposed.'
+  };
+};
 const callNamedTool = async (name, args, options = {}) => {
   if (name === 'listZeroTools') return collectTools(options, args);
+  if (name === AUTH_QA_TOOL_NAME) return requireMachineAuthQa(args, options);
   if (name === 'callZeroTool') {
     return callHubTool({
       options,
@@ -198,7 +257,7 @@ const handleMessage = async (message, options = {}) => {
       const result = await callNamedTool(name, args, options);
       return ok(id, contentResult(result));
     } catch (error) {
-      return fail(id, -32000, error.message || String(error), { code: error.code || 'TOOL_FAILED' });
+      return fail(id, -32000, error.message || String(error), { code: error.code || 'TOOL_FAILED', ...(error.data ? { data: error.data } : {}), ...(error.wwwAuthenticate ? { wwwAuthenticate: error.wwwAuthenticate } : {}) });
     }
   }
 

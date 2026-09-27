@@ -122,3 +122,13 @@ runtime/*.json committed to git
 logs/*.log
 chat transcript
 ```
+
+## Runtime enforcement probe
+
+The live enforcement probe is:
+
+```text
+zero.qa.auth.requireMachineAuth
+```
+
+This probe intentionally asks Core for a machine-auth protected path. If the connector has not supplied valid machine auth, Core must return `AUTH_REQUIRED`; it must not accept a raw key typed into chat.
