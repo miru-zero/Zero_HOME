@@ -14,55 +14,119 @@ const resourceSummary = () => ({
 });
 
 const renderHtml = () => `<!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Zero ChatGPT Auth</title>
   <style>
+    /* Component source: M:\AI_ZERO\beautiful-ui atoms/Button, atoms/StatusPill, atoms/Chip, app/globals.css */
     :root { color-scheme: dark; }
-    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #050507; color: #f5f7fb; }
-    main { min-height: 100vh; box-sizing: border-box; padding: 22px; background: radial-gradient(circle at 0 0, rgba(255, 0, 170, 0.24), transparent 34%), radial-gradient(circle at 100% 0, rgba(0, 210, 255, 0.22), transparent 32%), #050507; }
-    .shell { max-width: 880px; margin: 0 auto; border: 1px solid rgba(255,255,255,0.16); border-radius: 22px; background: rgba(12, 14, 20, 0.9); box-shadow: 0 18px 70px rgba(0,0,0,0.45); overflow: hidden; }
-    header { display: flex; gap: 14px; align-items: center; padding: 20px 20px 14px; border-bottom: 1px solid rgba(255,255,255,0.12); }
-    .logo { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: linear-gradient(135deg, #ff1ab3, #19d8ff); box-shadow: 0 0 26px rgba(255, 20, 190, 0.35), 0 0 36px rgba(0, 210, 255, 0.25); font-size: 26px; font-weight: 900; letter-spacing: -0.08em; }
-    h1 { font-size: 18px; margin: 0; }
-    .sub { margin: 4px 0 0; color: #b9c0cc; font-size: 13px; }
-    .content { padding: 20px; }
-    .status { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #d9deea; font-size: 13px; margin-bottom: 16px; }
-    label { display: block; font-weight: 700; margin-bottom: 8px; }
-    textarea { width: 100%; min-height: 270px; box-sizing: border-box; resize: vertical; border-radius: 16px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.42); color: #f5f7fb; padding: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; outline: none; }
-    textarea:focus { border-color: rgba(28, 218, 255, 0.76); box-shadow: 0 0 0 4px rgba(28, 218, 255, 0.12); }
-    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
-    button { border: 0; border-radius: 999px; padding: 11px 16px; font-weight: 800; cursor: pointer; }
-    .primary { color: #050507; background: linear-gradient(135deg, #ff48c7, #2eeaff); }
-    .ghost { color: #eef3ff; background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.15); }
-    .hint { color: #aeb7c7; font-size: 12px; line-height: 1.5; margin-top: 12px; }
-    code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 7px; }
-    .ok { color: #8fffc7; }
-    .warn { color: #ffd28f; }
-    .bad { color: #ff9ba8; }
+    .dark {
+      --page: oklch(0.209 0.004 264.477);
+      --canvas: oklch(0.231 0.004 264.487);
+      --surface: oklch(0.26 0.006 271.191);
+      --inset: oklch(0.243 0.004 264.492);
+      --hover: oklch(0.289 0.006 271.22);
+      --hover-2: oklch(0.318 0.007 274.747);
+      --ink: oklch(0.964 0.002 247.839);
+      --ink-2: oklch(0.731 0.008 260.731);
+      --ink-3: oklch(0.541 0.01 264.484);
+      --line: oklch(0.308 0.006 258.354);
+      --line-strong: oklch(0.356 0.007 264.474);
+      --field: oklch(0.293 0.006 271.223);
+      --accent: oklch(0.68 0.173 253.301);
+      --accent-ink: oklch(0.788 0.113 248.33);
+      --accent-tint: oklch(0.68 0.173 253.301 / 0.16);
+      --green: oklch(0.705 0.154 153.814);
+      --green-tint: oklch(0.705 0.154 153.814 / 0.14);
+      --orange: oklch(0.746 0.156 55.642);
+      --orange-tint: oklch(0.746 0.156 55.642 / 0.14);
+      --red: oklch(0.666 0.18 21.433);
+      --red-tint: oklch(0.666 0.18 21.433 / 0.14);
+      --shadow-btn: 0 0 0 1px oklch(1 0 0 / 0.1), 0 1px 2px oklch(0 0 0 / 0.3);
+      --shadow-card: 0 0 0 1px oklch(1 0 0 / 0.11), 0 1px 2px oklch(0 0 0 / 0.2), 0 2px 6px oklch(0 0 0 / 0.2);
+      --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.13), 0 2px 10px oklch(0 0 0 / 0.22);
+      --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.15), 0 8px 28px oklch(0 0 0 / 0.34);
+      --shadow-inset-field: inset 0 1px 2px oklch(0 0 0 / 0.4);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--page); color: var(--ink); }
+    main { min-height: 100vh; padding: 18px; background: radial-gradient(circle at 0 0, oklch(0.746 0.156 55.642 / 0.11), transparent 34%), radial-gradient(circle at 100% 0, oklch(0.68 0.173 253.301 / 0.18), transparent 32%), var(--page); }
+    .shell { max-width: 880px; margin: 0 auto; border-radius: 24px; background: var(--canvas); box-shadow: var(--shadow-overlay); overflow: hidden; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; min-width: 0; align-items: center; gap: 12px; }
+    .logo { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: linear-gradient(135deg, #ff1ab3, #19d8ff); box-shadow: 0 0 0 1px oklch(1 0 0 / 0.16), 0 10px 24px oklch(0 0 0 / 0.32); font-size: 22px; font-weight: 900; letter-spacing: -0.08em; }
+    h1 { margin: 0; font-size: 17px; line-height: 1.15; letter-spacing: -0.01em; }
+    .sub { margin: 4px 0 0; color: var(--ink-2); font-size: 12.5px; line-height: 1.45; }
+    .content { display: grid; gap: 14px; padding: 16px; }
+    .card { border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-card); }
+    .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 14px 0; }
+    .label-stack { display: grid; gap: 3px; }
+    label, .label { color: var(--ink); font-size: 13px; font-weight: 650; }
+    .muted { color: var(--ink-3); font-size: 12px; line-height: 1.45; }
+    .status-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .status-pill { display: inline-flex; height: 24px; align-items: center; gap: 6px; border-radius: 999px; padding: 0 10px; font-size: 13px; font-weight: 600; line-height: 1; background: var(--orange-tint); color: var(--orange); }
+    .status-pill::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+    .status-pill.ok { background: var(--green-tint); color: var(--green); }
+    .status-pill.warn { background: var(--orange-tint); color: var(--orange); }
+    .status-pill.bad { background: var(--red-tint); color: var(--red); }
+    .chip, code { display: inline; border-radius: 7px; background: var(--inset); color: var(--ink-2); padding: 2px 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1; }
+    .field-wrap { padding: 12px 14px 14px; }
+    textarea { width: 100%; min-height: 230px; resize: vertical; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--inset); color: var(--ink); box-shadow: var(--shadow-inset-field); padding: 13px 14px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.5; outline: none; }
+    textarea::placeholder { color: var(--ink-3); }
+    textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint), var(--shadow-inset-field); }
+    .row { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; padding: 0 14px 14px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 999px; padding: 9px 14px; font-size: 13px; font-weight: 650; line-height: 1; cursor: pointer; user-select: none; transition: transform 150ms ease-out, background-color 150ms ease-out, opacity 150ms ease-out; }
+    .btn:active { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.5; pointer-events: none; }
+    .primary { background: var(--accent); color: white; box-shadow: inset 0 1px 0 rgba(255,255,255,0.14); }
+    .primary:hover { background: var(--accent-ink); }
+    .ghost { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-btn); }
+    .ghost:hover { background: var(--hover); }
+    .hint { color: var(--ink-3); font-size: 12px; line-height: 1.5; padding: 0 14px 14px; margin: 0; }
+    .fineprint { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   </style>
 </head>
 <body>
 <main>
   <section class="shell">
-    <header>
-      <div class="logo" aria-hidden="true">Z</div>
-      <div>
-        <h1>Zero ChatGPT Auth Setup</h1>
-        <p class="sub">Connector/action embedded UI. Raw input stays inside this setup action and Zero Core returns redacted status only.</p>
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">Z</div>
+        <div>
+          <h1>Zero ChatGPT Auth Setup</h1>
+          <p class="sub">Embedded action UI using Beautiful UI component patterns.</p>
+        </div>
       </div>
+      <span class="status-pill warn">setup</span>
     </header>
     <div class="content">
-      <div id="status" class="status warn">Waiting for ChatGPT setup context…</div>
-      <label for="authInput">Paste test JSON/text</label>
-      <textarea id="authInput" spellcheck="false" autocomplete="off" placeholder='{ "test": true }'></textarea>
-      <div class="row">
-        <button id="submit" class="primary" type="button">Write auth.json</button>
-        <button id="refresh" class="ghost" type="button">Refresh status</button>
-      </div>
-      <p class="hint">Current test slice writes <code>auth.json</code>. Live retoken, sentinel, and capability probes are intentionally not enabled yet.</p>
+      <section class="card" aria-label="Auth status">
+        <div class="card-head">
+          <div class="label-stack">
+            <span class="label">Auth fixture status</span>
+            <span class="muted">Raw input is never returned to chat; Zero Core returns redacted metadata only.</span>
+          </div>
+          <div class="status-line"><span id="status" class="status-pill warn">Waiting for setup context…</span></div>
+        </div>
+        <p class="hint fineprint"><span class="chip">inline</span><span class="chip">mcp-app</span><span class="chip">redacted</span></p>
+      </section>
+      <section class="card" aria-label="Auth input">
+        <div class="card-head">
+          <div class="label-stack">
+            <label for="authInput">Paste test JSON/text</label>
+            <span class="muted">Current slice writes <code>auth.json</code>. Live retoken, sentinel, and capability probes stay off.</span>
+          </div>
+        </div>
+        <div class="field-wrap">
+          <textarea id="authInput" spellcheck="false" autocomplete="off" placeholder='{ "test": true }'></textarea>
+        </div>
+        <div class="row">
+          <button id="submit" class="btn primary" type="button">Write auth.json</button>
+          <button id="refresh" class="btn ghost" type="button">Refresh status</button>
+        </div>
+      </section>
     </div>
   </section>
 </main>
@@ -75,7 +139,7 @@ const renderHtml = () => `<!doctype html>
   let toolInput = null;
 
   const setStatus = (text, cls = 'warn') => {
-    statusEl.className = 'status ' + cls;
+    statusEl.className = 'status-pill ' + cls;
     statusEl.textContent = text;
   };
 

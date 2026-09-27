@@ -147,3 +147,22 @@ _meta["openai/widgetCSP"]
 ```
 
 This prevents ChatGPT from warning that the widget domain is missing for `ui://zero/chatgpt-auth/v1.html`.
+
+## UI component source
+
+The embedded auth setup resource uses component patterns from:
+
+```text
+M:\AI_ZERO\beautiful-ui
+```
+
+Mapped patterns:
+
+```text
+components/atoms/Button.tsx      -> pill action buttons
+components/atoms/StatusPill.tsx  -> redacted status pill with dot
+components/atoms/Chip.tsx        -> monospace metadata chips
+app/globals.css                  -> dark surface tokens, card shadows, field inset
+```
+
+Because MCP Apps resources are served as `text/html;profile=mcp-app`, the React/Tailwind components are translated into inline HTML/CSS tokens inside `chatgpt-auth-app-resource.js` rather than imported as React components.
