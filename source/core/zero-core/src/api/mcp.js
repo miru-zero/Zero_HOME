@@ -2,6 +2,7 @@
 
 const toolsHub = require('../hub');
 const zero = require('../../../../packages/zero');
+const chatgptAuthSetup = require('./chatgpt-auth-setup');
 
 const inputSchema = (properties, required = []) => ({
   type: 'object',
@@ -11,6 +12,8 @@ const inputSchema = (properties, required = []) => ({
 });
 
 const AUTH_QA_TOOL_NAME = 'zero.qa.auth.requireMachineAuth';
+const CHATGPT_LOGIN_TOOL_NAME = 'zero.chatgpt.login';
+const CHATGPT_AUTH_STATUS_TOOL_NAME = 'zero.chatgpt.auth.status';
 
 const authRequired = (message = 'Machine auth is required for this QA flow.') => {
   const error = new Error(message);
@@ -58,6 +61,16 @@ const discoveryTools = [
       device: { type: 'string' },
       reason: { type: 'string' }
     })
+  },
+  {
+    name: CHATGPT_LOGIN_TOOL_NAME,
+    description: 'Start the Zero ChatGPT auth setup UI test flow. Returns a setup URL; never accepts or returns raw session secrets.',
+    inputSchema: inputSchema({})
+  },
+  {
+    name: CHATGPT_AUTH_STATUS_TOOL_NAME,
+    description: 'Return redacted ChatGPT auth import status from Zero Core.',
+    inputSchema: inputSchema({})
   }
 ];
 
@@ -214,6 +227,8 @@ const requireMachineAuthQa = (args = {}, options = {}) => {
 const callNamedTool = async (name, args, options = {}) => {
   if (name === 'listZeroTools') return collectTools(options, args);
   if (name === AUTH_QA_TOOL_NAME) return requireMachineAuthQa(args, options);
+  if (name === CHATGPT_LOGIN_TOOL_NAME) return chatgptAuthSetup.login({ publicConfig: options.publicConfig || {}, env: options.env || process.env });
+  if (name === CHATGPT_AUTH_STATUS_TOOL_NAME) return chatgptAuthSetup.status({ env: options.env || process.env });
   if (name === 'callZeroTool') {
     return callHubTool({
       options,

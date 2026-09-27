@@ -119,3 +119,30 @@ test('MCP machine auth QA tool returns only redacted status when auth is valid',
   assert.equal(JSON.stringify(reply), JSON.stringify(reply).includes('SHOULD_NOT_LEAK') ? 'must-not-match' : JSON.stringify(reply));
 });
 
+
+
+test('MCP tools/list exposes ChatGPT auth setup tools', async () => {
+  const reply = await mcp.handle({ jsonrpc: '2.0', id: 5, method: 'tools/list' }, {
+    env: {},
+    createHub: () => makeHub()
+  });
+
+  assert.equal(reply.result.tools.some((tool) => tool.name === 'zero.chatgpt.login'), true);
+  assert.equal(reply.result.tools.some((tool) => tool.name === 'zero.chatgpt.auth.status'), true);
+});
+
+test('MCP zero.chatgpt.login returns setup UI URL and redacted target', async () => {
+  const reply = await mcp.handle({
+    jsonrpc: '2.0',
+    id: 6,
+    method: 'tools/call',
+    params: { name: 'zero.chatgpt.login', arguments: {} }
+  }, {
+    env: { ZERO_PUBLIC_BASE_URL: 'https://zero.example.test' },
+    createHub: () => makeHub()
+  });
+
+  assert.equal(reply.result.structuredContent.code, 'CHATGPT_AUTH_SETUP_REQUIRED');
+  assert.equal(reply.result.structuredContent.setup.url, 'https://zero.example.test/setup/chatgpt-auth?ticket=dev-fixture');
+  assert.equal(reply.result.structuredContent.target.redacted, true);
+});

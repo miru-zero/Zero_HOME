@@ -3,12 +3,22 @@ const serverConfig = require('../core/server-config');
 const toolsHub = require('../hub');
 const mcp = require('./mcp');
 const deviceRegistry = require('../core/device-registry');
+const chatgptAuthSetup = require('./chatgpt-auth-setup');
 const zero = require('../../../../packages/zero');
 
 const sendJson = (res, status, body) => {
   const data = JSON.stringify(body);
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
+    'content-length': Buffer.byteLength(data)
+  });
+  res.end(data);
+};
+
+const sendHtml = (res, status, body) => {
+  const data = String(body);
+  res.writeHead(status, {
+    'content-type': 'text/html; charset=utf-8',
     'content-length': Buffer.byteLength(data)
   });
   res.end(data);
@@ -45,6 +55,9 @@ const rootBody = (config, toolsSummary = null) => ({
     toolCall: '/providers/{provider}/tools/{tool}/call',
     mcp: '/mcp',
     devices: '/devices',
+    chatgptAuthSetup: '/setup/chatgpt-auth',
+    chatgptAuthSubmit: '/setup/chatgpt-auth/submit',
+    chatgptAuthStatus: '/auth/chatgpt/status',
     deviceRegister: '/devices/register',
     deviceHeartbeat: '/devices/{device_id}/heartbeat',
     deviceCapabilities: '/devices/{device_id}/capabilities',
@@ -135,6 +148,27 @@ exports.createServer = ({ publicConfig = serverConfig.withDefaults({}), createHu
     }
 
 
+    if (req.method === 'GET' && url.pathname === '/setup/chatgpt-auth') {
+      return sendHtml(res, 200, chatgptAuthSetup.renderPage({ publicConfig, env }));
+    }
+
+    if (req.method === 'POST' && url.pathname === '/setup/chatgpt-auth/submit') {
+      const result = await chatgptAuthSetup.submit({ req, publicConfig, env });
+      const accept = req.headers.accept || '';
+      if (accept.includes('application/json')) return sendJson(res, 200, result);
+      return sendHtml(res, 200, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Zero ChatGPT Auth Setup</title><style>body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:24px}main{max-width:880px;margin:0 auto}.card{background:#1b1b1b;border:1px solid #333;border-radius:16px;padding:16px}code,pre{background:#222;border-radius:8px;padding:2px 6px}a{color:#9cf}</style></head><body><main><h1>auth.json updated</h1><div class="card"><p>Write completed.</p><p>File: <code>${result.file}</code></p><p>Status: <code>${result.auth.status}</code></p><p>Input format: <code>${result.auth.input_format}</code></p><p>SHA-256: <code>${result.auth.input_sha256}</code></p><p><a href="/setup/chatgpt-auth">Back to setup</a></p></div></main></body></html>`);
+    }
+
+    if (req.method === 'GET' && url.pathname === '/auth/chatgpt/status') {
+      return sendJson(res, 200, chatgptAuthSetup.status({ env }));
+    }
+
+    if (req.method === 'POST' && url.pathname === '/auth/chatgpt/import') {
+      const body = await readJson(req);
+      const input = typeof body.input === 'string' ? body.input : JSON.stringify(body.input ?? body, null, 2);
+      return sendJson(res, 200, chatgptAuthSetup.writeAuth({ input, env, source: 'api-test' }));
+    }
+
     if (req.method === 'GET' && url.pathname === '/devices') {
       return sendJson(res, 200, deviceRegistry.listDevices(env));
     }
@@ -182,6 +216,7 @@ exports.createServer = ({ publicConfig = serverConfig.withDefaults({}), createHu
         createHub,
         env,
         collectTools,
+        publicConfig,
         context: buildToolContext(env)
       });
       if (reply === null) {
