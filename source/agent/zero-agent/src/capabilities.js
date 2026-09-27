@@ -80,8 +80,44 @@ const builtInLocalProvider = () => {
   };
 };
 
+const builtInChatGptAuthProvider = () => {
+  const tools = [
+    {
+      name: 'status',
+      description: 'Return redacted ChatGPT auth fixture status from the local zero-agent host.',
+      canonicalName: 'zero.chatgpt.auth.status',
+      category: 'auth',
+      function: 'status',
+      aliases: ['chatgpt.auth.status'],
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false }
+    },
+    {
+      name: 'import',
+      description: 'Write ChatGPT auth fixture input to the local zero-agent host. Returns redacted metadata only.',
+      canonicalName: 'zero.chatgpt.auth.import',
+      category: 'auth',
+      function: 'import',
+      aliases: ['chatgpt.auth.import'],
+      inputSchema: {
+        type: 'object',
+        properties: { input: { type: 'string' } },
+        required: ['input'],
+        additionalProperties: false
+      }
+    }
+  ];
+  return {
+    name: 'chatgpt',
+    type: 'internal',
+    description: 'Built-in ChatGPT auth setup support exposed by zero-agent.',
+    status: 'present',
+    tools,
+    tool_count: tools.length
+  };
+};
+
 const buildCapabilities = (env = process.env) => {
-  const providers = [builtInLocalProvider(), ...manifestProviders(env).map((provider) => {
+  const providers = [builtInLocalProvider(), builtInChatGptAuthProvider(), ...manifestProviders(env).map((provider) => {
     const tools = provider.type === 'internal' ? safeInternalTools(provider) : [];
     return {
       name: provider.name,
@@ -121,3 +157,4 @@ const buildCapabilities = (env = process.env) => {
 
 const capabilities = { mcpRoot, providersDir, manifestProviders, buildCapabilities };
 Object.assign(exports, capabilities);
+

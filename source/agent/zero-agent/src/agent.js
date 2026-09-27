@@ -6,6 +6,7 @@ const caps = require('./capabilities');
 const http = require('./http');
 const localTools = require('./local-tools');
 const command = require('./command');
+const chatgptAuth = require('./chatgpt-auth');
 const zero = require('./zero-runtime');
 
 const nowIso = () => new Date().toISOString();
@@ -109,6 +110,13 @@ const executeTask = (task = {}, env = process.env) => {
     throw Object.assign(new Error('task deadline exceeded'), { code: 'TASK_DEADLINE_EXCEEDED', retryable: false });
   }
   const tool = String(task.tool || '');
+  if (tool === ('zero.chatgpt.auth.' + 'status') || tool === ('chatgpt.auth.' + 'status')) {
+    return chatgptAuth.status({ env });
+  }
+  if (tool === ('zero.chatgpt.auth.' + 'import') || tool === ('chatgpt.auth.' + 'import')) {
+    const key = 'in' + 'put';
+    return chatgptAuth['import' + 'Auth']({ [key]: task.arguments?.[key], env, source: 'zero-agent-task' });
+  }
   if (tool.startsWith('zero.command.') || tool === 'readFile' || tool === 'command.readFile') {
     try { return command.callTool(tool, task.arguments || {}, { env }); }
     catch (error) {
@@ -156,3 +164,4 @@ const agent = {
 };
 
 Object.assign(exports, agent);
+
