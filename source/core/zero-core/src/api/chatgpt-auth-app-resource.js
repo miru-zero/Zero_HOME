@@ -2,6 +2,9 @@
 
 const CHATGPT_AUTH_RESOURCE_URI = 'ui://zero/chatgpt-auth/v1.html';
 const RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
+const defaultWidgetDomain = 'https://zero.miru.work';
+
+const widgetDomain = (env = process.env) => String(env.ZERO_CHATGPT_WIDGET_DOMAIN || defaultWidgetDomain).replace(/\/$/, '');
 
 const resourceSummary = () => ({
   uri: CHATGPT_AUTH_RESOURCE_URI,
@@ -165,12 +168,19 @@ const renderHtml = () => `<!doctype html>
 
 const listResources = () => ({ resources: [resourceSummary()] });
 
-const readResource = (uri) => {
+const readResource = (uri, options = {}) => {
   if (uri !== CHATGPT_AUTH_RESOURCE_URI) {
     const error = new Error('unknown resource: ' + uri);
     error.code = 'UNKNOWN_RESOURCE';
     throw error;
   }
+  const domain = widgetDomain(options.env || process.env);
+  const csp = {
+    connectDomains: [domain],
+    resourceDomains: [domain],
+    frameDomains: [domain],
+    redirectDomains: []
+  };
   return {
     contents: [
       {
@@ -179,15 +189,20 @@ const readResource = (uri) => {
         text: renderHtml(),
         _meta: {
           ui: {
+            domain,
             prefersBorder: true,
-            csp: {
-              connectDomains: [],
-              resourceDomains: []
-            }
+            csp
           },
           'openai/ui': {
             availableDisplayModes: ['inline', 'fullscreen']
-          }
+          },
+          'openai/widgetDescription': 'Zero ChatGPT auth setup embedded UI.',
+          'openai/widgetPrefersBorder': true,
+          'openai/widgetCSP': {
+            connect_domains: csp.connectDomains,
+            resource_domains: csp.resourceDomains
+          },
+          'openai/widgetDomain': domain
         }
       }
     ]
@@ -200,7 +215,8 @@ const appResource = {
   resourceSummary,
   renderHtml,
   listResources,
-  readResource
+  readResource,
+  widgetDomain
 };
 
 Object.assign(exports, appResource);

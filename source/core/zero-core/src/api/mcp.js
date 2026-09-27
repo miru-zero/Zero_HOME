@@ -295,7 +295,7 @@ const handleMessage = async (message, options = {}) => {
   if (method === 'resources/list') return ok(id, chatgptAuthAppResource.listResources());
   if (method === 'resources/read') {
     try {
-      return ok(id, chatgptAuthAppResource.readResource(params.uri));
+      return ok(id, chatgptAuthAppResource.readResource(params.uri, { env: options.env || process.env }));
     } catch (error) {
       return fail(id, -32000, error.message || String(error), { code: error.code || 'RESOURCE_FAILED' });
     }

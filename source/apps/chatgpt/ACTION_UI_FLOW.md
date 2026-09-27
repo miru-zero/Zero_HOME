@@ -116,3 +116,34 @@ zero.chatgpt.auth.import
 
 The embedded app resource renders a Zero-branded setup surface, accepts test JSON/text, calls `zero.chatgpt.auth.import`, and displays only redacted auth status.
 
+
+## Widget domain requirement
+
+ChatGPT requires each MCP Apps UI template to declare a unique widget/app domain.
+Zero declares the domain on the resource content metadata:
+
+```text
+_meta.ui.domain
+_meta["openai/widgetDomain"]
+```
+
+Default domain:
+
+```text
+https://zero.miru.work
+```
+
+Override for deployment or staging:
+
+```text
+ZERO_CHATGPT_WIDGET_DOMAIN=https://<dedicated-zero-widget-domain>
+```
+
+The resource also declares CSP metadata through both the current `ui.csp` shape and OpenAI compatibility keys:
+
+```text
+_meta.ui.csp
+_meta["openai/widgetCSP"]
+```
+
+This prevents ChatGPT from warning that the widget domain is missing for `ui://zero/chatgpt-auth/v1.html`.

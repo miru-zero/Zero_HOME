@@ -166,13 +166,19 @@ test('MCP Apps resources/list and resources/read expose ChatGPT auth UI resource
     id: 8,
     method: 'resources/read',
     params: { uri: 'ui://zero/chatgpt-auth/v1.html' }
-  }, { env: {}, createHub: () => makeHub() });
+  }, {
+    env: { ZERO_CHATGPT_WIDGET_DOMAIN: 'https://zero-widget.example.test/' },
+    createHub: () => makeHub()
+  });
 
   const content = read.result.contents[0];
   assert.equal(content.mimeType, 'text/html;profile=mcp-app');
   assert.equal(content.uri, 'ui://zero/chatgpt-auth/v1.html');
   assert.match(content.text, /Zero ChatGPT Auth Setup/);
   assert.deepEqual(content._meta['openai/ui'].availableDisplayModes, ['inline', 'fullscreen']);
+  assert.equal(content._meta.ui.domain, 'https://zero-widget.example.test');
+  assert.equal(content._meta['openai/widgetDomain'], 'https://zero-widget.example.test');
+  assert.deepEqual(content._meta['openai/widgetCSP'].connect_domains, ['https://zero-widget.example.test']);
 });
 
 
