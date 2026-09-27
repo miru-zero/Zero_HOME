@@ -5,6 +5,7 @@ const mcp = require('./mcp');
 const deviceRegistry = require('../core/device-registry');
 const chatgptAuthSetup = require('./chatgpt-auth-setup');
 const zero = require('../../../../packages/zero');
+const corePackage = require('../../package.json');
 
 const sendJson = (res, status, body) => {
   const data = JSON.stringify(body);
@@ -39,10 +40,19 @@ const apiError = (error) => ({
   }
 });
 
-const rootBody = (config, toolsSummary = null) => ({
+const versionSummary = (env = process.env) => ({
+  core: corePackage.version,
+  mcpServer: corePackage.version,
+  zeroContract: zero.contract.version,
+  agentPackage: env.ZERO_AGENT_VERSION || null,
+  pluginAppId: env.ZERO_PLUGIN_APP_ID || env.ZERO_CHATGPT_PLUGIN_APP_ID || null
+});
+
+const rootBody = (config, status = {}) => ({
   ok: true,
   service: 'zero-core',
   contractVersion: zero.contract.version,
+  versions: status.versions || versionSummary(status.env),
   domain: config.domain,
   host: config.host,
   port: config.port,
@@ -64,7 +74,7 @@ const rootBody = (config, toolsSummary = null) => ({
     deviceTaskNext: '/devices/{device_id}/tasks/next',
     deviceTaskResult: '/devices/{device_id}/tasks/{task_id}/result'
   },
-  ...(toolsSummary ? { tools: toolsSummary } : {})
+  ...(status.tools ? { tools: status.tools } : {})
 });
 
 const publicTool = (tool, includeSchemas) => ({
@@ -110,10 +120,21 @@ const buildToolContext = (env, execution = {}) => ({ env, ...execution });
 
 const summarizeTools = async (options) => {
   const detail = await collectTools(options);
+  const mcpTools = await mcp.tools(options);
+  const providerToolsTotal = detail.total;
+  const mcpToolsTotal = mcpTools.length;
+  const specialToolsTotal = mcpToolsTotal - providerToolsTotal;
   return {
-    endpoint: '/tools',
-    providers: Object.fromEntries(detail.providers.map((provider) => [provider.name, provider.count])),
-    total: detail.total
+    providerEndpoint: '/tools',
+    providerToolsTotal,
+    providerTools: {
+      providers: Object.fromEntries(detail.providers.map((provider) => [provider.name, provider.count])),
+      total: providerToolsTotal
+    },
+    mcpEndpoint: '/mcp tools/list',
+    mcpToolsTotal,
+    specialToolsTotal,
+    explanation: 'providerToolsTotal counts provider tools only; mcpToolsTotal is the ChatGPT App tool surface including discovery/auth/app tools.'
   };
 };
 exports.createServer = ({ publicConfig = serverConfig.withDefaults({}), createHub = null, env = process.env } = {}) => http.createServer(async (req, res) => {
@@ -123,11 +144,13 @@ exports.createServer = ({ publicConfig = serverConfig.withDefaults({}), createHu
     if (req.method === 'GET' && url.pathname === '/') {
       let toolsSummary = null;
       try { toolsSummary = await summarizeTools({ createHub, env }); } catch { toolsSummary = null; }
-      return sendJson(res, 200, rootBody(publicConfig, toolsSummary));
+      return sendJson(res, 200, rootBody(publicConfig, { env, versions: versionSummary(env), tools: toolsSummary }));
     }
 
     if (req.method === 'GET' && url.pathname === '/config') {
-      return sendJson(res, 200, rootBody(publicConfig));
+      let toolsSummary = null;
+      try { toolsSummary = await summarizeTools({ createHub, env }); } catch { toolsSummary = null; }
+      return sendJson(res, 200, rootBody(publicConfig, { env, versions: versionSummary(env), tools: toolsSummary }));
     }
 
     if (req.method === 'GET' && url.pathname === '/tools') {
@@ -248,7 +271,9 @@ exports.createServer = ({ publicConfig = serverConfig.withDefaults({}), createHu
     }
 
     if (req.method === 'GET' && url.pathname === '/health') {
-      return sendJson(res, 200, { ok: true, service: 'zero-core', contractVersion: zero.contract.version });
+      let toolsSummary = null;
+      try { toolsSummary = await summarizeTools({ createHub, env }); } catch { toolsSummary = null; }
+      return sendJson(res, 200, { ok: true, service: 'zero-core', contractVersion: zero.contract.version, versions: versionSummary(env), tools: toolsSummary });
     }
 
     return sendJson(res, 404, apiError(Object.assign(
