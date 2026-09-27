@@ -3,6 +3,7 @@
 const toolsHub = require('../hub');
 const zero = require('../../../../packages/zero');
 const chatgptAuthSetup = require('./chatgpt-auth-setup');
+const chatgptAuthAppResource = require('./chatgpt-auth-app-resource');
 
 const inputSchema = (properties, required = []) => ({
   type: 'object',
@@ -14,6 +15,7 @@ const inputSchema = (properties, required = []) => ({
 const AUTH_QA_TOOL_NAME = 'zero.qa.auth.requireMachineAuth';
 const CHATGPT_LOGIN_TOOL_NAME = 'zero.chatgpt.login';
 const CHATGPT_AUTH_STATUS_TOOL_NAME = 'zero.chatgpt.auth.status';
+const CHATGPT_AUTH_IMPORT_TOOL_NAME = 'zero.chatgpt.auth.import';
 
 const authRequired = (message = 'Machine auth is required for this QA flow.') => {
   const error = new Error(message);
@@ -64,13 +66,30 @@ const discoveryTools = [
   },
   {
     name: CHATGPT_LOGIN_TOOL_NAME,
-    description: 'Start the Zero ChatGPT auth setup UI test flow. Returns a setup URL; never accepts or returns raw session secrets.',
-    inputSchema: inputSchema({})
+    description: 'Start the Zero ChatGPT auth setup UI test flow. Opens the embedded MCP Apps UI when the client supports UI resources.',
+    inputSchema: inputSchema({}),
+    _meta: {
+      ui: {
+        resourceUri: chatgptAuthAppResource.CHATGPT_AUTH_RESOURCE_URI,
+        visibility: ['model', 'app']
+      },
+      'openai/outputTemplate': chatgptAuthAppResource.CHATGPT_AUTH_RESOURCE_URI
+    }
   },
   {
     name: CHATGPT_AUTH_STATUS_TOOL_NAME,
     description: 'Return redacted ChatGPT auth import status from Zero Core.',
-    inputSchema: inputSchema({})
+    inputSchema: inputSchema({}),
+    _meta: { ui: { visibility: ['model', 'app'] } }
+  },
+  {
+    name: CHATGPT_AUTH_IMPORT_TOOL_NAME,
+    description: 'Import ChatGPT auth fixture input from the embedded Zero UI. Requires a setup ticket and returns redacted metadata only.',
+    inputSchema: inputSchema({
+      ticket: { type: 'string' },
+      input: { type: 'string' }
+    }, ['ticket', 'input']),
+    _meta: { ui: { visibility: ['app'] } }
   }
 ];
 
@@ -90,6 +109,15 @@ const contentResult = (value) => ({
   content: [{ type: 'text', text: JSON.stringify(value, null, 2) }],
   structuredContent: value
 });
+
+const importChatGptAuth = (args = {}, options = {}) => {
+  chatgptAuthSetup.readSetupTicket(args.ticket, { consume: true });
+  return chatgptAuthSetup.writeAuth({
+    input: args.input,
+    env: options.env || process.env,
+    source: 'mcp-app-ui-test'
+  });
+};
 
 const createHubInstance = (options = {}) => {
   const factory = options.createHub || toolsHub.createHub;
@@ -229,6 +257,7 @@ const callNamedTool = async (name, args, options = {}) => {
   if (name === AUTH_QA_TOOL_NAME) return requireMachineAuthQa(args, options);
   if (name === CHATGPT_LOGIN_TOOL_NAME) return chatgptAuthSetup.login({ publicConfig: options.publicConfig || {}, env: options.env || process.env });
   if (name === CHATGPT_AUTH_STATUS_TOOL_NAME) return chatgptAuthSetup.status({ env: options.env || process.env });
+  if (name === CHATGPT_AUTH_IMPORT_TOOL_NAME) return importChatGptAuth(args, options);
   if (name === 'callZeroTool') {
     return callHubTool({
       options,
@@ -249,7 +278,7 @@ const callNamedTool = async (name, args, options = {}) => {
 
 const initializeResult = (params = {}) => ({
   protocolVersion: params.protocolVersion || '2025-06-18',
-  capabilities: { tools: { listChanged: false } },
+  capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
   serverInfo: { name: 'zero-mcp', version: '0.2.0' }
 });
 
@@ -263,6 +292,14 @@ const handleMessage = async (message, options = {}) => {
   if (method === 'notifications/initialized') return null;
   if (method === 'ping') return ok(id, {});
   if (method === 'tools/list') return ok(id, { tools: await mcpTools(options) });
+  if (method === 'resources/list') return ok(id, chatgptAuthAppResource.listResources());
+  if (method === 'resources/read') {
+    try {
+      return ok(id, chatgptAuthAppResource.readResource(params.uri));
+    } catch (error) {
+      return fail(id, -32000, error.message || String(error), { code: error.code || 'RESOURCE_FAILED' });
+    }
+  }
 
   if (method === 'tools/call') {
     const name = params.name;

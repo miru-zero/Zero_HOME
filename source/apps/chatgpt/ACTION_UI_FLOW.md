@@ -91,3 +91,28 @@ Next connector/app layer work:
 - map submit to Zero Core import endpoint
 - keep Core fallback page for QA only
 ```
+
+## MCP Apps UI/resource layer
+
+Implemented Core resource support:
+
+```text
+resources/list
+resources/read
+ui://zero/chatgpt-auth/v1.html
+mimeType: text/html;profile=mcp-app
+```
+
+Tool/resource mapping:
+
+```text
+zero.chatgpt.login
+  _meta.ui.resourceUri = ui://zero/chatgpt-auth/v1.html
+  _meta["openai/outputTemplate"] = ui://zero/chatgpt-auth/v1.html
+
+zero.chatgpt.auth.import
+  _meta.ui.visibility = ["app"]
+```
+
+The embedded app resource renders a Zero-branded setup surface, accepts test JSON/text, calls `zero.chatgpt.auth.import`, and displays only redacted auth status.
+

@@ -2,6 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const mcp = require('../src/api/mcp');
 
 const makeHub = (calls = []) => ({
@@ -147,4 +150,54 @@ test('MCP zero.chatgpt.login returns setup UI URL and redacted target', async ()
   assert.equal(reply.result.structuredContent.setup.type, 'chatgpt_browser_widget_setup_flow');
   assert.notEqual(reply.result.structuredContent.setup.ticket, 'dev-fixture');
   assert.equal(reply.result.structuredContent.target.redacted, true);
+});
+
+
+test('MCP Apps resources/list and resources/read expose ChatGPT auth UI resource', async () => {
+  const list = await mcp.handle({ jsonrpc: '2.0', id: 7, method: 'resources/list' }, {
+    env: {},
+    createHub: () => makeHub()
+  });
+
+  assert.equal(list.result.resources.some((resource) => resource.uri === 'ui://zero/chatgpt-auth/v1.html'), true);
+
+  const read = await mcp.handle({
+    jsonrpc: '2.0',
+    id: 8,
+    method: 'resources/read',
+    params: { uri: 'ui://zero/chatgpt-auth/v1.html' }
+  }, { env: {}, createHub: () => makeHub() });
+
+  const content = read.result.contents[0];
+  assert.equal(content.mimeType, 'text/html;profile=mcp-app');
+  assert.equal(content.uri, 'ui://zero/chatgpt-auth/v1.html');
+  assert.match(content.text, /Zero ChatGPT Auth Setup/);
+  assert.deepEqual(content._meta['openai/ui'].availableDisplayModes, ['inline', 'fullscreen']);
+});
+
+
+test('MCP tools/list links zero.chatgpt.login to the ChatGPT auth app resource', async () => {
+  const reply = await mcp.handle({ jsonrpc: '2.0', id: 9, method: 'tools/list' }, {
+    env: {},
+    createHub: () => makeHub()
+  });
+
+  const login = reply.result.tools.find((tool) => tool.name === 'zero.chatgpt.login');
+  const importTool = reply.result.tools.find((tool) => tool.name === 'zero.chatgpt.auth.import');
+  assert.equal(login._meta.ui.resourceUri, 'ui://zero/chatgpt-auth/v1.html');
+  assert.equal(login._meta['openai/outputTemplate'], 'ui://zero/chatgpt-auth/v1.html');
+  assert.deepEqual(importTool._meta.ui.visibility, ['app']);
+});
+
+test('MCP app import tool consumes setup ticket and writes redacted auth fixture', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zero-mcp-app-auth-'));
+  const authFile = path.join(dir, 'auth.json');
+  const env = { ZERO_PUBLIC_BASE_URL: 'https://zero.example.test', ZERO_CHATGPT_AUTH_FILE: authFile };
+  const login = await mcp.handle({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'zero.chatgpt.login', arguments: {} } }, { env, createHub: () => makeHub() });
+  const ticket = login.result.structuredContent.setup.ticket;
+  const imported = await mcp.handle({ jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'zero.chatgpt.auth.import', arguments: { ticket, input: '{"ok":true}' } } }, { env, createHub: () => makeHub() });
+
+  assert.equal(imported.result.structuredContent.auth.redacted, true);
+  assert.equal(fs.existsSync(authFile), true);
+  assert.equal(JSON.parse(fs.readFileSync(authFile, 'utf8')).source, 'mcp-app-ui-test');
 });
