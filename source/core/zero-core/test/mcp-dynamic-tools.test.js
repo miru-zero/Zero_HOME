@@ -143,6 +143,8 @@ test('MCP zero.chatgpt.login returns setup UI URL and redacted target', async ()
   });
 
   assert.equal(reply.result.structuredContent.code, 'CHATGPT_AUTH_SETUP_REQUIRED');
-  assert.equal(reply.result.structuredContent.setup.url, 'https://zero.example.test/setup/chatgpt-auth?ticket=dev-fixture');
+  assert.match(reply.result.structuredContent.setup.url, /^https:\/\/zero\.example\.test\/setup\/chatgpt-auth\?ticket=/);
+  assert.equal(reply.result.structuredContent.setup.type, 'chatgpt_browser_widget_setup_flow');
+  assert.notEqual(reply.result.structuredContent.setup.ticket, 'dev-fixture');
   assert.equal(reply.result.structuredContent.target.redacted, true);
 });

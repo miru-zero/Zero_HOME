@@ -149,14 +149,14 @@ exports.createServer = ({ publicConfig = serverConfig.withDefaults({}), createHu
 
 
     if (req.method === 'GET' && url.pathname === '/setup/chatgpt-auth') {
-      return sendHtml(res, 200, chatgptAuthSetup.renderPage({ publicConfig, env }));
+      return sendHtml(res, 200, chatgptAuthSetup.renderPage({ publicConfig, env, ticket: url.searchParams.get('ticket') }));
     }
 
     if (req.method === 'POST' && url.pathname === '/setup/chatgpt-auth/submit') {
       const result = await chatgptAuthSetup.submit({ req, publicConfig, env });
       const accept = req.headers.accept || '';
       if (accept.includes('application/json')) return sendJson(res, 200, result);
-      return sendHtml(res, 200, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Zero ChatGPT Auth Setup</title><style>body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:24px}main{max-width:880px;margin:0 auto}.card{background:#1b1b1b;border:1px solid #333;border-radius:16px;padding:16px}code,pre{background:#222;border-radius:8px;padding:2px 6px}a{color:#9cf}</style></head><body><main><h1>auth.json updated</h1><div class="card"><p>Write completed.</p><p>File: <code>${result.file}</code></p><p>Status: <code>${result.auth.status}</code></p><p>Input format: <code>${result.auth.input_format}</code></p><p>SHA-256: <code>${result.auth.input_sha256}</code></p><p><a href="/setup/chatgpt-auth">Back to setup</a></p></div></main></body></html>`);
+      return sendHtml(res, 200, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Zero ChatGPT Auth Setup</title><style>body{font-family:system-ui,sans-serif;background:#111;color:#eee;padding:24px}main{max-width:880px;margin:0 auto}.card{background:#1b1b1b;border:1px solid #333;border-radius:16px;padding:16px}code,pre{background:#222;border-radius:8px;padding:2px 6px}a{color:#9cf}</style></head><body><main><h1>auth.json updated</h1><div class="card"><p>Write completed.</p><p>File: <code>${result.file}</code></p><p>Status: <code>${result.auth.status}</code></p><p>Input format: <code>${result.auth.input_format}</code></p><p>SHA-256: <code>${result.auth.input_sha256}</code></p><p>Start another setup from <code>zero.chatgpt.login</code> in the ChatGPT browser/widget.</p></div></main></body></html>`);
     }
 
     if (req.method === 'GET' && url.pathname === '/auth/chatgpt/status') {
@@ -165,8 +165,9 @@ exports.createServer = ({ publicConfig = serverConfig.withDefaults({}), createHu
 
     if (req.method === 'POST' && url.pathname === '/auth/chatgpt/import') {
       const body = await readJson(req);
+      chatgptAuthSetup.readSetupTicket(body.ticket, { consume: true });
       const input = typeof body.input === 'string' ? body.input : JSON.stringify(body.input ?? body, null, 2);
-      return sendJson(res, 200, chatgptAuthSetup.writeAuth({ input, env, source: 'api-test' }));
+      return sendJson(res, 200, chatgptAuthSetup.writeAuth({ input, env, source: 'chatgpt-widget-api-test' }));
     }
 
     if (req.method === 'GET' && url.pathname === '/devices') {
@@ -255,7 +256,8 @@ exports.createServer = ({ publicConfig = serverConfig.withDefaults({}), createHu
       { code: 'NOT_FOUND' }
     )));
   } catch (error) {
-    const status = error instanceof SyntaxError
+    const setupFailure = String(error.code || '').startsWith('SETUP_TICKET_') || error.code === 'BAD_AUTH_INPUT' || error.code === 'BODY_TOO_LARGE';
+    const status = error instanceof SyntaxError || setupFailure
       ? 400
       : error.code === 'UNKNOWN_PROVIDER'
         ? 404

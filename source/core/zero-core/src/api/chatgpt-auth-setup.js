@@ -1,11 +1,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const crypto = require('node:crypto');
 
 const provider = 'chatgpt';
+const setupTickets = new Map();
+const defaultSetupTtlMs = 10 * 60 * 1000;
+const defaultMcpHome = (env = process.env) => env.ZERO_MCP_HOME || path.join(os.homedir(), '.zero_mcp');
 const defaultAuthFile = (env = process.env) => path.join(
-  env.USERPROFILE || 'C:\\Users\\Administrator',
-  '.zero_mcp',
+  defaultMcpHome(env),
   'chatgpt',
   'auth.json'
 );
@@ -18,6 +21,32 @@ const sha256 = (value) => crypto.createHash('sha256').update(String(value)).dige
 
 const ensureParent = (filePath) => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
+};
+
+const setupError = (code, message) => {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+};
+
+const createSetupTicket = ({ now = Date.now(), ttlMs = defaultSetupTtlMs, source = 'chatgpt-widget' } = {}) => {
+  const ticket = crypto.randomBytes(24).toString('base64url');
+  const expiresAt = now + ttlMs;
+  setupTickets.set(ticket, { ticket, source, createdAt: now, expiresAt, used: false });
+  return { ticket, expiresAt, expiresInSec: Math.floor(ttlMs / 1000) };
+};
+
+const readSetupTicket = (ticket, { now = Date.now(), consume = false } = {}) => {
+  if (!ticket) throw setupError('SETUP_TICKET_REQUIRED', 'setup ticket is required; start from zero.chatgpt.login in ChatGPT');
+  const entry = setupTickets.get(String(ticket));
+  if (!entry) throw setupError('SETUP_TICKET_INVALID', 'setup ticket is invalid; start from zero.chatgpt.login in ChatGPT');
+  if (entry.used) throw setupError('SETUP_TICKET_USED', 'setup ticket was already used; start a new setup from zero.chatgpt.login');
+  if (entry.expiresAt <= now) {
+    setupTickets.delete(String(ticket));
+    throw setupError('SETUP_TICKET_EXPIRED', 'setup ticket expired; start a new setup from zero.chatgpt.login');
+  }
+  if (consume) entry.used = true;
+  return entry;
 };
 
 const htmlEscape = (value) => String(value)
@@ -61,6 +90,17 @@ const extractPayload = (contentType, bodyText) => {
     return new URLSearchParams(bodyText).get('input') || '';
   }
   return bodyText || '';
+};
+
+const extractTicket = (contentType, bodyText) => {
+  if ((contentType || '').includes('application/json')) {
+    const parsed = JSON.parse(bodyText || '{}');
+    return typeof parsed.ticket === 'string' ? parsed.ticket : '';
+  }
+  if ((contentType || '').includes('application/x-www-form-urlencoded')) {
+    return new URLSearchParams(bodyText).get('ticket') || '';
+  }
+  return '';
 };
 
 const status = ({ env = process.env } = {}) => {
@@ -148,32 +188,34 @@ const baseUrl = ({ publicConfig = {}, env = process.env } = {}) => (
   || `http://127.0.0.1:${env.ZERO_SERVER_PORT || publicConfig.port || 8050}`
 ).replace(/\/$/, '');
 
-const login = ({ publicConfig = {}, env = process.env } = {}) => {
-  const url = `${baseUrl({ publicConfig, env })}/setup/chatgpt-auth?ticket=dev-fixture`;
+const login = ({ publicConfig = {}, env = process.env, source = 'chatgpt-widget' } = {}) => {
+  const issued = createSetupTicket({ source });
+  const url = `${baseUrl({ publicConfig, env })}/setup/chatgpt-auth?ticket=${encodeURIComponent(issued.ticket)}`;
   return {
     ok: false,
     provider,
     code: 'CHATGPT_AUTH_SETUP_REQUIRED',
-    mode: 'setup-ui-test',
+    mode: 'chatgpt-browser-widget-setup',
     setup: {
-      type: 'web_setup_flow',
+      type: 'chatgpt_browser_widget_setup_flow',
       url,
-      ticket: 'dev-fixture',
-      expires_in_sec: null
+      ticket: issued.ticket,
+      expires_in_sec: issued.expiresInSec
     },
     target: {
       file: resolveAuthFile(env),
       redacted: true
     },
     instructions: [
-      'Open the setup URL.',
-      'Paste any test JSON/text into the UI.',
+      'Start this setup from the ChatGPT browser/widget action only.',
+      'Paste test JSON/text into the setup UI opened from that action.',
       'Submit to write auth.json. Validation probes are not enabled in this test slice.'
     ]
   };
 };
 
-const renderPage = ({ publicConfig = {}, env = process.env } = {}) => {
+const renderPage = ({ publicConfig = {}, env = process.env, ticket } = {}) => {
+  readSetupTicket(ticket);
   const target = resolveAuthFile(env);
   const current = status({ env });
   return `<!doctype html>
@@ -196,11 +238,13 @@ const renderPage = ({ publicConfig = {}, env = process.env } = {}) => {
   <main>
     <h1>Zero ChatGPT Auth Setup</h1>
     <div class="card">
+      <p><strong>ChatGPT browser/widget setup only:</strong> this page requires a setup ticket from <code>zero.chatgpt.login</code>.</p>
       <p><strong>Test slice:</strong> this UI accepts input and writes <code>auth.json</code>. No live validation, retoken, sentinel, or capability probe is run yet.</p>
       <p class="muted">Target file: <code>${htmlEscape(target)}</code></p>
       <p class="muted">Current status: <code>${htmlEscape(current.auth.status)}</code>, present=<code>${current.auth.present}</code></p>
     </div>
     <form method="post" action="/setup/chatgpt-auth/submit">
+      <input type="hidden" name="ticket" value="${htmlEscape(ticket)}">
       <label for="input">Paste test JSON/text</label>
       <textarea id="input" name="input" spellcheck="false" autocomplete="off" placeholder='{ "test": true }'></textarea>
       <br>
@@ -215,7 +259,9 @@ const submit = async ({ req, env = process.env } = {}) => {
   const contentType = req.headers['content-type'] || '';
   const bodyText = await readTextBody(req);
   const input = extractPayload(contentType, bodyText);
-  return writeAuth({ input, env, source: 'setup-ui-test' });
+  const ticket = extractTicket(contentType, bodyText);
+  readSetupTicket(ticket, { consume: true });
+  return writeAuth({ input, env, source: 'chatgpt-widget-setup-ui-test' });
 };
 
 const chatgptAuthSetup = {
@@ -224,7 +270,10 @@ const chatgptAuthSetup = {
   writeAuth,
   renderPage,
   submit,
-  resolveAuthFile
+  resolveAuthFile,
+  createSetupTicket,
+  readSetupTicket,
+  defaultMcpHome
 };
 
 Object.assign(exports, chatgptAuthSetup);
