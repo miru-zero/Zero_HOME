@@ -1,9 +1,12 @@
-# Repository Guidelines
+﻿# Repository Guidelines
 
 ## Project Structure & Module Organization
 
 `source/` contains production code organized by runtime boundary: `core/zero-core` owns the public MCP/Core server, `agent/zero-agent` owns paired machine execution, `providers/` owns provider implementations, `packages/` owns shared contracts/utilities, and `apps/` is reserved for ChatGPT-facing app-plugin connector documentation. Unit tests live beside their modules in `test/` directories. `sandbox/` is reserved for temporary experiments, packaged artifacts, failed runs, and scratch files; do not place production code there. `.zero/` contains workspace metadata and configuration. `logs/` contains local runtime logs and is ignored.
 
+## Source Navigation
+
+Before editing runtime code, read `source/README.md`, `source/CONNECTION_MAP.md`, and `source/HANDOFF.md`. These files define the active Core/Agent/Provider/App boundaries and the intended next steps.
 ## Build, Test, and Development Commands
 
 Run commands from the module directory you are changing:
@@ -34,3 +37,4 @@ Use concise imperative commit subjects, keep each commit focused, and describe b
 ## Security & Configuration Tips
 
 Never commit credentials, tokens, device secrets, or personal data. Keep experiments and generated artifacts under `sandbox/`. Review `.zero/` changes carefully because they affect workspace behavior, and verify paths before changing runtime or device configuration.
+
