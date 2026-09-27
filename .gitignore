@@ -9,3 +9,4 @@ sandbox/
 **/runtime/*.json
 .DS_Store
 Thumbs.db
+logs/
