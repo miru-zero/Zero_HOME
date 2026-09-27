@@ -1,6 +1,6 @@
 {
   "name": "@miruzero/zero-agent",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "MiruZero local worker agent for multi-device tool execution.",
   "type": "commonjs",
   "main": "src/index.js",
