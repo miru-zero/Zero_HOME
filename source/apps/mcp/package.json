@@ -1,1 +1,0 @@
-{"name":"@zero/mcp","version":"0.2.0","private":true,"type":"commonjs","scripts":{"start":"node src/main.js","test":"node --test test/command-provider.test.js"}}

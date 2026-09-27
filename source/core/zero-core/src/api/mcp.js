@@ -1,6 +1,9 @@
-'use strict';
+﻿'use strict';
 
 const toolsHub = require('../hub');
+const zero = require('../../../../packages/zero');
+const chatgptAuthSetup = require('./chatgpt-auth-setup');
+const chatgptAuthAppResource = require('./chatgpt-auth-app-resource');
 
 const inputSchema = (properties, required = []) => ({
   type: 'object',
@@ -9,127 +12,86 @@ const inputSchema = (properties, required = []) => ({
   additionalProperties: false
 });
 
-const devicesTool = (name, description, properties, required = []) => ({
-  name: `zero.devices.${name}`,
-  description: `${description} Routes to provider devices/${name}.`,
-  inputSchema: inputSchema(properties, required)
-});
+const AUTH_QA_TOOL_NAME = 'zero.qa.auth.requireMachineAuth';
+const CHATGPT_LOGIN_TOOL_NAME = 'zero.chatgpt.login';
+const CHATGPT_AUTH_STATUS_TOOL_NAME = 'zero.chatgpt.auth.status';
+const CHATGPT_AUTH_IMPORT_TOOL_NAME = 'zero.chatgpt.auth.import';
 
-const commandTool = (name, description, properties, required = []) => ({
-  name: `zero.command.${name}`,
-  description: `${description} Routes to provider command/${name}.`,
-  inputSchema: inputSchema(properties, required)
-});
+const authRequired = (message = 'Machine auth is required for this QA flow.') => {
+  const error = new Error(message);
+  error.code = 'AUTH_REQUIRED';
+  error.wwwAuthenticate = 'Bearer realm="zero-machine", error="AUTH_REQUIRED"';
+  return error;
+};
 
-const COMMAND_TOOL_NAMES = [
-  'readFile',
-  'readFiles',
-  'writeFile',
-  'replaceFile',
-  'createDirectory',
-  'deleteFile',
-  'globFiles',
-  'grepFiles',
-  'listDirectory',
-  'getFileInfo'
-];
-const COMMAND_TOOL_DEFS = [
-  commandTool('readFile', 'Read a text file with line numbers.', {
-    path: { type: 'string' },
-    offset: { type: 'integer', default: 0 },
-    length: { type: 'integer', minimum: 1, maximum: 1000, default: 200 }
-  }, ['path']),
-  commandTool('readFiles', 'Read multiple text files with line numbers. Accept paths[] or files[].', {
-    paths: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 50 },
-    files: {
-      type: 'array', minItems: 1, maxItems: 50,
-      items: inputSchema({
-        path: { type: 'string' },
-        offset: { type: 'integer' },
-        length: { type: 'integer', minimum: 1, maximum: 1000 }
-      }, ['path'])
-    },
-    offset: { type: 'integer', default: 0 },
-    length: { type: 'integer', minimum: 1, maximum: 1000, default: 200 }
-  }),
-  commandTool('writeFile', 'Write or append text content to a file.', {
-    path: { type: 'string' },
-    content: { type: 'string' },
-    mode: { type: 'string', enum: ['overwrite', 'append'], default: 'overwrite' }
-  }, ['path', 'content']),
-  commandTool('replaceFile', 'Replace exact text inside a text file.', {
-    path: { type: 'string' },
-    oldString: { type: 'string' },
-    newString: { type: 'string' },
-    expectedReplacements: { type: 'integer', minimum: 0 }
-  }, ['path', 'oldString', 'newString']),
-  commandTool('createDirectory', 'Create a directory under an allowed root.', {
-    path: { type: 'string' }
-  }, ['path']),
-  commandTool('deleteFile', 'Delete one file under an allowed root.', {
-    path: { type: 'string' }
-  }, ['path'])
-];
-COMMAND_TOOL_DEFS.push(
-  commandTool('globFiles', 'Find files by wildcard pattern.', {
-    path: { type: 'string' },
-    pattern: { type: 'string' },
-    maxResults: { type: 'integer', minimum: 1, maximum: 1000, default: 200 }
-  }, ['path', 'pattern']),
-  commandTool('grepFiles', 'Search text content in files.', {
-    path: { type: 'string' },
-    pattern: { type: 'string' },
-    literal: { type: 'boolean', default: false },
-    filePattern: { type: 'string' },
-    maxResults: { type: 'integer', minimum: 1, maximum: 1000, default: 200 }
-  }, ['path', 'pattern']),
-  commandTool('listDirectory', 'List files and directories.', {
-    path: { type: 'string' },
-    depth: { type: 'integer', minimum: 1, maximum: 5, default: 2 }
-  }, ['path']),
-  commandTool('getFileInfo', 'Get file or directory metadata.', {
-    path: { type: 'string' }
-  }, ['path'])
-);
-const DEVICES_TOOL_NAMES = ['list', 'status', 'heartbeat', 'exec'];
-const DEVICES_TOOL_DEFS = [
-  devicesTool('list', 'List paired Zero devices.', {
-    onlineOnly: { type: 'boolean', default: false }
-  }),
-  devicesTool('status', 'Get one Zero device by device_id or name.', {
-    device_id: { type: 'string' },
-    name: { type: 'string' }
-  }),
-  devicesTool('heartbeat', 'Summarize latest heartbeat state for one Zero device.', {
-    device_id: { type: 'string' },
-    name: { type: 'string' }
-  }),
-  devicesTool('exec', 'Queue a safe command tool on one Zero agent device and wait for the result.', {
-    device_id: { type: 'string' },
-    name: { type: 'string' },
-    tool: { type: 'string' },
-    arguments: { type: 'object', additionalProperties: true },
-    waitMs: { type: 'integer', minimum: 0, maximum: 60000, default: 15000 }
-  }, ['tool'])
-];
-const TOOL_DEFS = [
+const authContext = (options = {}) => options.auth || options.context?.auth || null;
+const hasMachineAuth = (options = {}) => {
+  const auth = authContext(options);
+  return Boolean(auth && auth.type === 'machine' && auth.status === 'valid');
+};
+
+const redactedAuthStatus = (options = {}) => {
+  const auth = authContext(options);
+  if (!auth) return { present: false, status: 'missing', redacted: true };
+  return {
+    present: true,
+    type: auth.type || 'unknown',
+    status: auth.status || 'unknown',
+    device: auth.device || null,
+    redacted: true
+  };
+};
+const discoveryTools = [
   {
     name: 'listZeroTools',
     description: 'List Zero providers and tools available through zero.miru.work.',
     inputSchema: inputSchema({ provider: { type: 'string' }, schemas: { type: 'boolean' } })
   },
-  ...COMMAND_TOOL_DEFS,
-  ...DEVICES_TOOL_DEFS,
+  {
+    name: 'callZeroTool',
+    description: 'Call a Zero provider tool. Use only when no fixed Zero MCP tool fits.',
+    inputSchema: inputSchema({
+      provider: { type: 'string' },
+      tool: { type: 'string' },
+      arguments: { type: 'object', additionalProperties: true }
+    }, ['provider', 'tool'])
+  },
+  {
+    name: AUTH_QA_TOOL_NAME,
+    description: 'QA gate for machine auth. It must return AUTH_REQUIRED unless Core received a valid machine auth context. Never returns raw secrets.',
+    inputSchema: inputSchema({
+      device: { type: 'string' },
+      reason: { type: 'string' }
+    })
+  },
+  {
+    name: CHATGPT_LOGIN_TOOL_NAME,
+    description: 'Start the Zero ChatGPT auth setup UI test flow. Opens the embedded MCP Apps UI when the client supports UI resources.',
+    inputSchema: inputSchema({}),
+    _meta: {
+      ui: {
+        resourceUri: chatgptAuthAppResource.CHATGPT_AUTH_RESOURCE_URI,
+        visibility: ['model', 'app']
+      },
+      'openai/outputTemplate': chatgptAuthAppResource.CHATGPT_AUTH_RESOURCE_URI
+    }
+  },
+  {
+    name: CHATGPT_AUTH_STATUS_TOOL_NAME,
+    description: 'Return redacted ChatGPT auth import status from Zero Core.',
+    inputSchema: inputSchema({}),
+    _meta: { ui: { visibility: ['model', 'app'] } }
+  },
+  {
+    name: CHATGPT_AUTH_IMPORT_TOOL_NAME,
+    description: 'Import ChatGPT auth fixture input from the embedded Zero UI. Requires a setup ticket and returns redacted metadata only.',
+    inputSchema: inputSchema({
+      ticket: { type: 'string' },
+      input: { type: 'string' }
+    }, ['ticket', 'input']),
+    _meta: { ui: { visibility: ['app'] } }
+  }
 ];
-TOOL_DEFS.push({
-  name: 'callZeroTool',
-  description: 'Call a Zero provider tool. Use only when no fixed Zero MCP tool fits.',
-  inputSchema: inputSchema({
-    provider: { type: 'string' },
-    tool: { type: 'string' },
-    arguments: { type: 'object', additionalProperties: true }
-  }, ['provider', 'tool'])
-});
 
 const ok = (id, result) => ({ jsonrpc: '2.0', id, result });
 const fail = (id, code, message, data = undefined) => ({
@@ -148,41 +110,50 @@ const contentResult = (value) => ({
   structuredContent: value
 });
 
-const mcpTools = () => TOOL_DEFS.map((tool) => ({ ...tool }));
-const callHubTool = async ({ createHub, env, context, provider, tool, args }) => {
-  const hub = (createHub || toolsHub.createHub)({ env });
-  try {
-    const toolContext = { ...(context || {}), env: context?.env || env || process.env };
-    return await hub.callTool(provider, tool, args || {}, toolContext);
-  } finally {
-    if (hub && typeof hub.close === 'function') hub.close();
-  }
+const importChatGptAuth = (args = {}, options = {}) => {
+  chatgptAuthSetup.readSetupTicket(args.ticket, { consume: true });
+  return chatgptAuthSetup.writeAuth({
+    input: args.input,
+    env: options.env || process.env,
+    source: 'mcp-app-ui-test'
+  });
 };
 
-const devicesToolName = (name) => {
-  if (!name || !name.startsWith('zero.devices.')) return null;
-  const tool = name.slice('zero.devices.'.length);
-  return DEVICES_TOOL_NAMES.includes(tool) ? tool : null;
+const createHubInstance = (options = {}) => {
+  const factory = options.createHub || toolsHub.createHub;
+  return factory({ env: options.env || process.env });
 };
 
-const commandToolName = (name) => {
-  if (!name || !name.startsWith('zero.command.')) return null;
-  const tool = name.slice('zero.command.'.length);
-  return COMMAND_TOOL_NAMES.includes(tool) ? tool : null;
+const providerToolName = (provider, tool) => {
+  if (tool.canonicalName) return tool.canonicalName;
+  if (tool.category && tool.function) {
+    return zero.toolId.format({
+      provider: provider.name,
+      category: tool.category,
+      function: tool.function
+    });
+  }
+  return `zero.${provider.name}.${tool.name}`;
 };
 
-const callNamedTool = async (name, args, options) => {
-  const devicesName = devicesToolName(name);
-  if (devicesName) {
-    return callHubTool({ ...options, provider: 'devices', tool: devicesName, args });
-  }
+const publicTool = (provider, tool, includeSchemas = true) => ({
+  name: providerToolName(provider, tool),
+  ...(tool.description ? { description: tool.description } : {}),
+  ...(includeSchemas && tool.inputSchema ? { inputSchema: tool.inputSchema } : {})
+});
 
-  const commandName = commandToolName(name);
-  if (commandName) {
-    return callHubTool({ ...options, provider: 'command', tool: commandName, args });
-  }
+const publicCatalogTool = (provider, tool, includeSchemas = false) => ({
+  name: tool.name,
+  ...(tool.description ? { description: tool.description } : {}),
+  ...(tool.canonicalName ? { canonicalName: tool.canonicalName } : {}),
+  ...(tool.category ? { category: tool.category } : {}),
+  ...(tool.function ? { function: tool.function } : {}),
+  ...(tool.aliases ? { aliases: tool.aliases } : {}),
+  ...(includeSchemas && tool.inputSchema ? { inputSchema: tool.inputSchema } : {})
+});
 
-  if (name === 'listZeroTools') {
+const collectTools = async (options = {}, args = {}) => {
+  if (typeof options.collectTools === 'function') {
     return options.collectTools({
       createHub: options.createHub,
       env: options.env,
@@ -190,27 +161,128 @@ const callNamedTool = async (name, args, options) => {
       includeSchemas: args.schemas === true
     });
   }
+
+  const hub = createHubInstance(options);
+  try {
+    const providerName = args.provider || null;
+    const selected = hub.listProviders().filter((provider) => !providerName || provider.name === providerName);
+    if (providerName && selected.length === 0) {
+      const error = new Error('unknown provider: ' + providerName);
+      error.code = 'UNKNOWN_PROVIDER';
+      throw error;
+    }
+
+    const providers = [];
+    let total = 0;
+    for (const provider of selected) {
+      const tools = (await hub.listTools(provider.name, {})).map((tool) => publicCatalogTool(provider, tool, args.schemas === true));
+      total += tools.length;
+      providers.push({
+        name: provider.name,
+        type: provider.type,
+        ...(provider.description ? { description: provider.description } : {}),
+        count: tools.length,
+        tools
+      });
+    }
+    return { ok: true, providers, total };
+  } finally {
+    if (hub && typeof hub.close === 'function') hub.close();
+  }
+};
+
+const mcpTools = async (options = {}) => {
+  const hub = createHubInstance(options);
+  try {
+    const tools = [];
+    for (const provider of hub.listProviders()) {
+      const providerTools = await hub.listTools(provider.name, {});
+      for (const tool of providerTools) tools.push(publicTool(provider, tool, true));
+    }
+    return [...discoveryTools, ...tools];
+  } finally {
+    if (hub && typeof hub.close === 'function') hub.close();
+  }
+};
+
+const routeFromToolName = (name) => {
+  try {
+    const identity = zero.toolId.parse(name || '');
+    return { provider: identity.provider, tool: identity.function };
+  } catch (error) {
+    if (error.code !== 'INVALID_TOOL_ID') throw error;
+  }
+
+  const match = /^zero\.([A-Za-z][A-Za-z0-9_-]*)\.([A-Za-z][A-Za-z0-9_-]*)$/.exec(String(name || ''));
+  if (!match) return null;
+  return { provider: match[1], tool: match[2] };
+};
+
+const callHubTool = async ({ options = {}, provider, tool, args = {} }) => {
+  const hub = createHubInstance(options);
+  try {
+    const context = { ...(options.context || {}), env: options.context?.env || options.env || process.env };
+    return await hub.callTool(provider, tool, args || {}, context);
+  } finally {
+    if (hub && typeof hub.close === 'function') hub.close();
+  }
+};
+
+const requireMachineAuthQa = (args = {}, options = {}) => {
+  if (!hasMachineAuth(options)) {
+    const error = authRequired('Machine auth is required before protected Zero machine actions can run.');
+    error.data = {
+      code: 'AUTH_REQUIRED',
+      auth: redactedAuthStatus(options),
+      required: {
+        type: 'machine',
+        source: 'ChatGPT MCP connector or future OAuth/secret boundary',
+        raw_secret_allowed_in_chat: false
+      },
+      requested: {
+        device: args.device || null,
+        reason: args.reason || 'qa'
+      }
+    };
+    throw error;
+  }
+  return {
+    ok: true,
+    auth: redactedAuthStatus(options),
+    message: 'Machine auth context is valid. Raw secret was not exposed.'
+  };
+};
+const callNamedTool = async (name, args, options = {}) => {
+  if (name === 'listZeroTools') return collectTools(options, args);
+  if (name === AUTH_QA_TOOL_NAME) return requireMachineAuthQa(args, options);
+  if (name === CHATGPT_LOGIN_TOOL_NAME) return chatgptAuthSetup.login({ publicConfig: options.publicConfig || {}, env: options.env || process.env });
+  if (name === CHATGPT_AUTH_STATUS_TOOL_NAME) return chatgptAuthSetup.status({ env: options.env || process.env });
+  if (name === CHATGPT_AUTH_IMPORT_TOOL_NAME) return importChatGptAuth(args, options);
   if (name === 'callZeroTool') {
     return callHubTool({
-      ...options,
+      options,
       provider: args.provider,
       tool: args.tool,
       args: args.arguments || {}
     });
   }
 
-  const error = new Error('unknown MCP tool: ' + name);
-  error.code = 'UNKNOWN_TOOL';
-  throw error;
+  const route = routeFromToolName(name);
+  if (!route) {
+    const error = new Error('unknown MCP tool: ' + name);
+    error.code = 'UNKNOWN_TOOL';
+    throw error;
+  }
+  return callHubTool({ options, provider: route.provider, tool: route.tool, args });
 };
 
 const initializeResult = (params = {}) => ({
   protocolVersion: params.protocolVersion || '2025-06-18',
-  capabilities: { tools: { listChanged: false } },
-  serverInfo: { name: 'zero-mcp', version: '0.1.0' }
+  capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
+  serverInfo: { name: 'zero-mcp', version: '0.2.0' }
 });
 
-const handleMessage = async (message, options) => {
+const handleMessage = async (message, options = {}) => {
   const id = Object.prototype.hasOwnProperty.call(message, 'id') ? message.id : null;
   const method = message.method;
   const params = message.params || {};
@@ -219,19 +291,25 @@ const handleMessage = async (message, options) => {
   if (method === 'initialize') return ok(id, initializeResult(params));
   if (method === 'notifications/initialized') return null;
   if (method === 'ping') return ok(id, {});
-  if (method === 'tools/list') return ok(id, { tools: mcpTools() });
+  if (method === 'tools/list') return ok(id, { tools: await mcpTools(options) });
+  if (method === 'resources/list') return ok(id, chatgptAuthAppResource.listResources());
+  if (method === 'resources/read') {
+    try {
+      return ok(id, chatgptAuthAppResource.readResource(params.uri, { env: options.env || process.env }));
+    } catch (error) {
+      return fail(id, -32000, error.message || String(error), { code: error.code || 'RESOURCE_FAILED' });
+    }
+  }
 
   if (method === 'tools/call') {
     const name = params.name;
-    const args = params.arguments && typeof params.arguments === 'object'
-      ? params.arguments
-      : {};
+    const args = params.arguments && typeof params.arguments === 'object' ? params.arguments : {};
     try {
-      trace(options?.env, 'mcp.tools.call', { tool: name, args });
-      const result = await callNamedTool(name, args, options || {});
+      trace(options.env, 'mcp.tools.call', { tool: name, args });
+      const result = await callNamedTool(name, args, options);
       return ok(id, contentResult(result));
     } catch (error) {
-      return fail(id, -32000, error.message || String(error), { code: error.code || 'TOOL_FAILED' });
+      return fail(id, -32000, error.message || String(error), { code: error.code || 'TOOL_FAILED', ...(error.data ? { data: error.data } : {}), ...(error.wwwAuthenticate ? { wwwAuthenticate: error.wwwAuthenticate } : {}) });
     }
   }
 
@@ -240,23 +318,18 @@ const handleMessage = async (message, options) => {
 
 const mcp = {
   tools: mcpTools,
-  handle: async (body, options) => {
-    if (!body || typeof body !== 'object') {
-      return fail(null, -32600, 'invalid request');
-    }
-
+  handle: async (body, options = {}) => {
+    if (!body || typeof body !== 'object') return fail(null, -32600, 'invalid request');
     if (Array.isArray(body)) {
       const replies = [];
       for (const item of body) {
-        const reply = await handleMessage(item, options || {});
+        const reply = await handleMessage(item, options);
         if (reply) replies.push(reply);
       }
       return replies.length ? replies : null;
     }
-
-    return handleMessage(body, options || {});
+    return handleMessage(body, options);
   }
 };
 
-exports.tools = mcp.tools;
-exports.handle = mcp.handle;
+Object.assign(exports, mcp);
