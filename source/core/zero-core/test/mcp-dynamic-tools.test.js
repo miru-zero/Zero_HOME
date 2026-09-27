@@ -175,7 +175,7 @@ test('MCP Apps resources/list and resources/read expose ChatGPT auth UI resource
   assert.equal(content.mimeType, 'text/html;profile=mcp-app');
   assert.equal(content.uri, 'ui://zero/chatgpt-auth/v1.html');
   assert.match(content.text, /Zero ChatGPT Auth Setup/);
-  assert.deepEqual(content._meta['openai/ui'].availableDisplayModes, ['inline', 'fullscreen']);
+  assert.deepEqual(content._meta['openai/ui'].availableDisplayModes, ['inline']);
   assert.equal(content._meta.ui.domain, 'https://zero-widget.example.test');
   assert.equal(content._meta['openai/widgetDomain'], 'https://zero-widget.example.test');
   assert.deepEqual(content._meta['openai/widgetCSP'].connect_domains, ['https://zero-widget.example.test']);

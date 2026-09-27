@@ -194,7 +194,7 @@ const readResource = (uri, options = {}) => {
             csp
           },
           'openai/ui': {
-            availableDisplayModes: ['inline', 'fullscreen']
+            availableDisplayModes: ['inline']
           },
           'openai/widgetDescription': 'Zero ChatGPT auth setup embedded UI.',
           'openai/widgetPrefersBorder': true,
